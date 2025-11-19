@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Polyomino Calendar Puzzle</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 30px;
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .game-wrapper {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .game-board {
+            flex: 0 0 auto;
+        }
+
+        .canvas {
+            border: 3px solid #333;
+            border-radius: 8px;
+            background: #f5f5f5;
+            cursor: crosshair;
+            display: block;
+        }
+
+        .info-panel {
+            flex: 0 0 280px;
+        }
+
+        .info-section {
+            margin-bottom: 25px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .info-section h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .info-section p {
+            color: #666;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .date-display {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+            text-align: center;
+        }
+
+        .piece-tray {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .piece-item {
+            padding: 12px;
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .piece-item:hover {
+            border-color: #667eea;
+            background: #f0f2ff;
+            transform: translateY(-2px);
+        }
+
+        .piece-item.selected {
+            border-color: #667eea;
+            background: #e8ebff;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .controls {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            flex: 1;
+            min-width: 70px;
+            padding: 10px 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button.secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        button.secondary:hover {
+            background: #d0d0d0;
+        }
+
+        .status-message {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 500;
+            display: none;
+        }
+
+        .status-message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+
+        .status-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+
+        .keyboard-hints {
+            font-size: 11px;
+            color: #999;
+            margin-top: 15px;
+            padding: 10px;
+            background: #fafafa;
+            border-radius: 4px;
+            line-height: 1.6;
+        }
+
+        .keyboard-hints strong {
+            color: #333;
+        }
+
+        @media (max-width: 768px) {
+            .game-wrapper {
+                flex-direction: column;
+            }
+
+            .info-panel {
+                flex: 0 0 auto;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📅 Polyomino Calendar Puzzle</h1>
+            <p>Place all pieces to cover every day and month except today</p>
+        </div>
+
+        <div class="game-wrapper">
+            <div class="game-board">
+                <canvas id="gameCanvas" class="canvas"></canvas>
+            </div>
+
+            <div class="info-panel">
+                <div class="info-section">
+                    <h3>Today's Date</h3>
+                    <div class="date-display" id="dateDisplay"></div>
+                </div>
+
+                <div class="info-section">
+                    <h3>Pieces to Place</h3>
+                    <div class="piece-tray" id="pieceTray"></div>
+                </div>
+
+                <div class="controls">
+                    <div class="control-group">
+                        <label class="control-label">Selected Piece</label>
+                        <div id="selectedPiece" style="color: #667eea; font-weight: bold; margin-bottom: 10px;">None</div>
+                    </div>
+
+                    <div class="control-group">
+                        <label class="control-label">Rotation & Flip</label>
+                        <div class="button-group">
+                            <button onclick="rotateClockwise()">↻ Rotate</button>
+                            <button class="secondary" onclick="flipPiece()">↔ Flip</button>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <label class="control-label">Game</label>
+                        <div class="button-group">
+                            <button class="secondary" onclick="resetPuzzle()" style="flex: 1;">Reset</button>
+                        </div>
+                    </div>
+
+                    <div class="keyboard-hints">
+                        <strong>Keyboard:</strong><br/>
+                        R = Rotate<br/>
+                        F = Flip<br/>
+                        Click piece to select
+                    </div>
+                </div>
+
+                <div id="statusMessage" class="status-message"></div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeGrid, getCurrentDate, GRID_ROWS, GRID_COLS, isValidPlacement, pieceToGridCoords } from './grid.js';
+        import { pieces, getPiece, getPieceOrientation, nextOrientation, prevOrientation } from './pieces.js';
+
+        // Canvas setup
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        const SQUARE_SIZE = 50;
+        const PADDING = 20;
+
+        canvas.width = GRID_COLS * SQUARE_SIZE + PADDING * 2;
+        canvas.height = GRID_ROWS * SQUARE_SIZE + PADDING * 2;
+
+        // Game state
+        const gameState = {
+            grid: initializeGrid(),
+            placedPieces: new Map(), // Map<pieceName, { row, col, orientationIndex }>
+            selectedPiece: null,
+            selectedOrientation: 0,
+            occupiedSquares: new Set(),
+            mousePos: { x: 0, y: 0 }
+        };
+
+        const currentDate = getCurrentDate();
+
+        // Initialize date display
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                          'July', 'August', 'September', 'October', 'November', 'December'];
+        document.getElementById('dateDisplay').textContent = 
+            `${monthNames[currentDate.monthIndex]} ${currentDate.dayNumber}`;
+
+        // Initialize piece tray
+        function initPieceTray() {
+            const tray = document.getElementById('pieceTray');
+            tray.innerHTML = '';
+            Object.keys(pieces).forEach(pieceName => {
+                const item = document.createElement('div');
+                item.className = 'piece-item';
+                item.textContent = pieceName;
+                item.onclick = () => selectPiece(pieceName);
+                item.id = `piece-${pieceName}`;
+                tray.appendChild(item);
+            });
+        }
+
+        function selectPiece(pieceName) {
+            // Deselect previous
+            if (gameState.selectedPiece) {
+                document.getElementById(`piece-${gameState.selectedPiece}`).classList.remove('selected');
+            }
+            
+            gameState.selectedPiece = pieceName;
+            gameState.selectedOrientation = 0;
+            
+            document.getElementById(`piece-${pieceName}`).classList.add('selected');
+            document.getElementById('selectedPiece').textContent = pieceName;
+            
+            draw();
+        }
+
+        function rotateClockwise() {
+            if (!gameState.selectedPiece) return;
+            const piece = getPiece(gameState.selectedPiece);
+            gameState.selectedOrientation = (gameState.selectedOrientation + 1) % piece.orientations.length;
+            draw();
+        }
+
+        function flipPiece() {
+            if (!gameState.selectedPiece) return;
+            // For now, just cycle through orientations as flip effect
+            rotateClockwise();
+        }
+
+        function resetPuzzle() {
+            gameState.placedPieces.clear();
+            gameState.occupiedSquares.clear();
+            gameState.selectedPiece = null;
+            gameState.selectedOrientation = 0;
+            document.getElementById('selectedPiece').textContent = 'None';
+            document.querySelectorAll('.piece-item').forEach(item => item.classList.remove('selected'));
+            draw();
+        }
+
+        function getGridPos(canvasX, canvasY) {
+            const col = Math.floor((canvasX - PADDING) / SQUARE_SIZE);
+            const row = Math.floor((canvasY - PADDING) / SQUARE_SIZE);
+            return { row, col };
+        }
+
+        function drawGrid() {
+            // Draw calendar squares
+            for (let row = 0; row < GRID_ROWS; row++) {
+                for (let col = 0; col < GRID_COLS; col++) {
+                    const square = gameState.grid[row][col];
+                    const x = PADDING + col * SQUARE_SIZE;
+                    const y = PADDING + row * SQUARE_SIZE;
+
+                    if (square.type === 'empty') {
+                        continue;
+                    }
+
+                    // Check if this is the current date (should be empty)
+                    const isCurrent = (square.type === 'month' && square.monthIndex === currentDate.monthIndex) ||
+                                     (square.type === 'day' && square.dayNumber === currentDate.dayNumber);
+
+                    // Draw background
+                    ctx.fillStyle = isCurrent ? '#fff3cd' : '#ffffff';
+                    ctx.fillRect(x, y, SQUARE_SIZE, SQUARE_SIZE);
+
+                    // Draw border
+                    ctx.strokeStyle = '#cccccc';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(x, y, SQUARE_SIZE, SQUARE_SIZE);
+
+                    // Draw text
+                    ctx.fillStyle = isCurrent ? '#ff6b6b' : '#333';
+                    ctx.font = isCurrent ? 'bold 12px sans-serif' : '12px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(square.label, x + SQUARE_SIZE / 2, y + SQUARE_SIZE / 2);
+                }
+            }
+        }
+
+        function drawPiece(pieceCoords, startRow, startCol, color, opacity = 1) {
+            ctx.globalAlpha = opacity;
+            ctx.fillStyle = color;
+            
+            pieceCoords.forEach(([x, y]) => {
+                const gridRow = startRow + y;
+                const gridCol = startCol + x;
+                const canvasX = PADDING + gridCol * SQUARE_SIZE;
+                const canvasY = PADDING + gridRow * SQUARE_SIZE;
+                
+                ctx.fillRect(canvasX, canvasY, SQUARE_SIZE, SQUARE_SIZE);
+                ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(canvasX, canvasY, SQUARE_SIZE, SQUARE_SIZE);
+            });
+            
+            ctx.globalAlpha = 1;
+        }
+
+        function drawPreview() {
+            if (!gameState.selectedPiece) return;
+
+            const piece = getPiece(gameState.selectedPiece);
+            const coords = piece.orientations[gameState.selectedOrientation];
+            const { row, col } = getGridPos(gameState.mousePos.x, gameState.mousePos.y);
+
+            const gridCoords = pieceToGridCoords(coords, row, col);
+            const isValid = isValidPlacement(gridCoords, gameState.occupiedSquares);
+
+            drawPiece(coords, row, col, piece.color, isValid ? 0.4 : 0.2);
+        }
+
+        function draw() {
+            ctx.fillStyle = '#f5f5f5';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            drawGrid();
+
+            // Draw placed pieces
+            gameState.placedPieces.forEach((placement, pieceName) => {
+                const piece = getPiece(pieceName);
+                const coords = piece.orientations[placement.orientationIndex];
+                drawPiece(coords, placement.row, placement.col, piece.color, 0.8);
+            });
+
+            // Draw preview
+            drawPreview();
+        }
+
+        // Canvas events
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            gameState.mousePos = {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+            draw();
+        });
+
+        canvas.addEventListener('click', (e) => {
+            if (!gameState.selectedPiece) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const canvasX = e.clientX - rect.left;
+            const canvasY = e.clientY - rect.top;
+            const { row, col } = getGridPos(canvasX, canvasY);
+
+            const piece = getPiece(gameState.selectedPiece);
+            const coords = piece.orientations[gameState.selectedOrientation];
+            const gridCoords = pieceToGridCoords(coords, row, col);
+
+            if (isValidPlacement(gridCoords, gameState.occupiedSquares)) {
+                // Place piece
+                gameState.placedPieces.set(gameState.selectedPiece, {
+                    row,
+                    col,
+                    orientationIndex: gameState.selectedOrientation
+                });
+
+                // Mark squares as occupied
+                gridCoords.forEach(([r, c]) => {
+                    gameState.occupiedSquares.add(`${r},${c}`);
+                });
+
+                // Deselect
+                document.getElementById(`piece-${gameState.selectedPiece}`).classList.remove('selected');
+                gameState.selectedPiece = null;
+                document.getElementById('selectedPiece').textContent = 'None';
+
+                draw();
+            }
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            gameState.mousePos = { x: -1000, y: -1000 };
+            draw();
+        });
+
+        // Keyboard events
+        document.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() === 'r') {
+                e.preventDefault();
+                rotateClockwise();
+            } else if (e.key.toLowerCase() === 'f') {
+                e.preventDefault();
+                flipPiece();
+            }
+        });
+
+        // Make functions global
+        window.rotateClockwise = rotateClockwise;
+        window.flipPiece = flipPiece;
+        window.resetPuzzle = resetPuzzle;
+
+        // Initialize
+        initPieceTray();
+        draw();
+    </script>
+</body>
+</html>

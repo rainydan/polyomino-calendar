@@ -1,0 +1,195 @@
+/**
+ * Polyomino piece definitions for the calendar puzzle
+ * 
+ * Each piece is defined with:
+ * - name: Display name
+ * - color: CSS color for rendering
+ * - orientations: Array of all unique orientations (rotations + flips)
+ *   Each orientation contains coordinate pairs [x, y] relative to origin (0,0)
+ */
+
+/**
+ * Helper function to rotate coordinates 90 degrees clockwise
+ * @param {Array} coords - Array of [x, y] pairs
+ * @returns {Array} Rotated coordinates
+ */
+function rotateCoords(coords) {
+  // Rotation: (x,y) -> (y, -x), then normalize
+  const rotated = coords.map(([x, y]) => [y, -x]);
+  // Normalize to positive coordinates
+  const minX = Math.min(...rotated.map(([x]) => x));
+  const minY = Math.min(...rotated.map(([, y]) => y));
+  return rotated.map(([x, y]) => [x - minX, y - minY]);
+}
+
+/**
+ * Helper function to flip coordinates horizontally
+ * @param {Array} coords - Array of [x, y] pairs
+ * @returns {Array} Flipped coordinates
+ */
+function flipCoords(coords) {
+  // Flip: (x,y) -> (-x, y), then normalize
+  const maxX = Math.max(...coords.map(([x]) => x));
+  return coords.map(([x, y]) => [maxX - x, y]);
+}
+
+/**
+ * Generate all unique orientations (rotations and flips) for a piece
+ * @param {Array} baseCoords - Starting coordinates
+ * @returns {Array} Array of unique orientation coordinate arrays
+ */
+function generateOrientations(baseCoords) {
+  const orientations = [];
+  const seen = new Set();
+  
+  let current = baseCoords;
+  
+  // Try 4 rotations
+  for (let r = 0; r < 4; r++) {
+    const key = JSON.stringify(current.sort((a, b) => a[0] - b[0] || a[1] - b[1]));
+    if (!seen.has(key)) {
+      seen.add(key);
+      orientations.push([...current].sort((a, b) => a[0] - b[0] || a[1] - b[1]));
+    }
+    current = rotateCoords(current);
+  }
+  
+  // Try 4 rotations of the flipped version
+  current = flipCoords(baseCoords);
+  for (let r = 0; r < 4; r++) {
+    const key = JSON.stringify(current.sort((a, b) => a[0] - b[0] || a[1] - b[1]));
+    if (!seen.has(key)) {
+      seen.add(key);
+      orientations.push([...current].sort((a, b) => a[0] - b[0] || a[1] - b[1]));
+    }
+    current = rotateCoords(current);
+  }
+  
+  return orientations;
+}
+
+export const pieces = {
+  // Pentominoes
+  L: {
+    name: "L",
+    color: "#FF6B6B",
+    orientations: generateOrientations([[0,0], [1,0], [2,0], [3,0], [0,1]])
+  },
+  N: {
+    name: "N",
+    color: "#4ECDC4",
+    orientations: generateOrientations([[0,0], [1,0], [1,1], [2,1], [2,2]])
+  },
+  P: {
+    name: "P",
+    color: "#95E1D3",
+    orientations: generateOrientations([[0,0], [1,0], [0,1], [1,1], [0,2]])
+  },
+  U: {
+    name: "U",
+    color: "#F7B731",
+    orientations: generateOrientations([[0,0], [2,0], [0,1], [1,1], [2,1]])
+  },
+  V: {
+    name: "V",
+    color: "#5F27CD",
+    orientations: generateOrientations([[0,0], [1,0], [2,0], [0,1], [0,2]])
+  },
+  Y: {
+    name: "Y",
+    color: "#EE5A6F",
+    orientations: generateOrientations([[0,0], [1,0], [1,1], [1,2], [2,1]])
+  },
+  Z: {
+    name: "Z",
+    color: "#00D2D3",
+    orientations: generateOrientations([[0,0], [1,0], [1,1], [2,1], [2,2]])
+  },
+
+  // Hexomino
+  RECTANGLE: {
+    name: "Rectangle",
+    color: "#FFA502",
+    orientations: generateOrientations([[0,0], [1,0], [2,0], [0,1], [1,1], [2,1]])
+  }
+};
+
+/**
+ * Returns a piece by name
+ * @param {string} name - Piece name (L, N, P, U, V, Y, Z, RECTANGLE)
+ * @returns {Object} Piece definition
+ */
+export function getPiece(name) {
+  return pieces[name];
+}
+
+/**
+ * Returns all piece names in order
+ * @returns {string[]} Array of piece names
+ */
+export function getPieceNames() {
+  return Object.keys(pieces);
+}
+
+/**
+ * Get a specific orientation of a piece
+ * @param {string} name - Piece name
+ * @param {number} orientationIndex - Orientation index
+ * @returns {Array} Array of [x, y] coordinates
+ */
+export function getPieceOrientation(name, orientationIndex = 0) {
+  const piece = pieces[name];
+  if (!piece) return null;
+  const normalizedIndex = ((orientationIndex % piece.orientations.length) + piece.orientations.length) % piece.orientations.length;
+  return piece.orientations[normalizedIndex];
+}
+
+/**
+ * Get the next orientation for a piece (clockwise rotation)
+ * @param {string} name - Piece name
+ * @param {number} currentIndex - Current orientation index
+ * @returns {number} Next orientation index
+ */
+export function nextOrientation(name, currentIndex = 0) {
+  const piece = pieces[name];
+  if (!piece) return 0;
+  return (currentIndex + 1) % piece.orientations.length;
+}
+
+/**
+ * Get the previous orientation for a piece (counter-clockwise rotation)
+ * @param {string} name - Piece name
+ * @param {number} currentIndex - Current orientation index
+ * @returns {number} Previous orientation index
+ */
+export function prevOrientation(name, currentIndex = 0) {
+  const piece = pieces[name];
+  if (!piece) return 0;
+  return (currentIndex - 1 + piece.orientations.length) % piece.orientations.length;
+}
+
+/**
+ * Get the bounding box of a set of coordinates
+ * @param {Array} coords - Array of [x, y] coordinates
+ * @returns {Object} { minX, maxX, minY, maxY, width, height }
+ */
+export function getBoundingBox(coords) {
+  if (!coords || coords.length === 0) return null;
+  
+  const xs = coords.map(([x]) => x);
+  const ys = coords.map(([, y]) => y);
+  
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  
+  return {
+    minX,
+    maxX,
+    minY,
+    maxY,
+    width: maxX - minX + 1,
+    height: maxY - minY + 1,
+  };
+}

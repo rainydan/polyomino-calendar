@@ -128,6 +128,13 @@
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
 
+        .piece-item.placed {
+            opacity: 0.5;
+            cursor: default;
+            background: #e8f5e9;
+            border-color: #4caf50;
+        }
+
         .controls {
             margin-top: 20px;
             padding-top: 20px;
@@ -221,6 +228,16 @@
 
         .keyboard-hints strong {
             color: #333;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        .canvas.shake {
+            animation: shake 0.4s ease-in-out;
         }
 
         @media (max-width: 768px) {
@@ -317,6 +334,111 @@
         };
 
         const currentDate = getCurrentDate();
+        
+        // Storage keys
+        const STORAGE_GAME_STATE = 'polyomino-game-state';
+        const STORAGE_STATS = 'polyomino-stats';
+        const STORAGE_LAST_DATE = 'polyomino-last-date';
+        
+        // Daily reset logic
+        function shouldResetForNewDay() {
+            const lastDate = localStorage.getItem(STORAGE_LAST_DATE);
+            const today = `${currentDate.monthIndex}-${currentDate.dayNumber}`;
+            
+            if (!lastDate) return false; // First time, no reset needed
+            return lastDate !== today;
+        }
+
+        function resetForNewDay() {
+            localStorage.setItem(STORAGE_LAST_DATE, `${currentDate.monthIndex}-${currentDate.dayNumber}`);
+            localStorage.removeItem(STORAGE_GAME_STATE);
+            
+            // Keep stats but reset game state
+            gameState.placedPieces.clear();
+            gameState.occupiedSquares.clear();
+            gameState.selectedPiece = null;
+            gameState.selectedOrientation = 0;
+        }
+
+        // localStorage helper functions
+        function saveGameState() {
+            const gameData = {
+                date: `${currentDate.monthIndex}-${currentDate.dayNumber}`,
+                placedPieces: Array.from(gameState.placedPieces.entries()),
+                occupiedSquares: Array.from(gameState.occupiedSquares)
+            };
+            localStorage.setItem(STORAGE_GAME_STATE, JSON.stringify(gameData));
+        }
+
+        function loadGameState() {
+            const saved = localStorage.getItem(STORAGE_GAME_STATE);
+            if (!saved) return;
+            
+            try {
+                const gameData = JSON.parse(saved);
+                // Only load if it's for today
+                if (gameData.date === `${currentDate.monthIndex}-${currentDate.dayNumber}`) {
+                    gameData.placedPieces.forEach(([name, placement]) => {
+                        gameState.placedPieces.set(name, placement);
+                    });
+                    gameData.occupiedSquares.forEach(sq => {
+                        gameState.occupiedSquares.add(sq);
+                    });
+                    return true;
+                }
+            } catch (e) {
+                console.error('Failed to load game state:', e);
+            }
+            return false;
+        }
+
+        function saveStats(solved, timeSeconds = 0) {
+            let stats = JSON.parse(localStorage.getItem(STORAGE_STATS)) || {
+                gamesPlayed: 0,
+                gamesWon: 0,
+                currentStreak: 0,
+                longestStreak: 0,
+                lastPlayedDate: null,
+                personalBest: 999999,
+                stats: {}
+            };
+
+            const dateKey = `${currentDate.monthIndex + 1}-${currentDate.dayNumber}`;
+            
+            if (!stats.stats[dateKey]) {
+                stats.gamesPlayed++;
+                stats.stats[dateKey] = {};
+            }
+
+            if (solved) {
+                stats.gamesWon++;
+                stats.stats[dateKey].solved = true;
+                stats.stats[dateKey].timeSeconds = timeSeconds;
+
+                // Update streak
+                const yesterday = new Date(new Date().setDate(new Date().getDate() - 1));
+                const yesterdayKey = `${yesterday.getMonth() + 1}-${yesterday.getDate()}`;
+                
+                if (stats.lastPlayedDate === yesterdayKey && stats.stats[yesterdayKey].solved) {
+                    stats.currentStreak++;
+                } else {
+                    stats.currentStreak = 1;
+                }
+                
+                if (stats.currentStreak > stats.longestStreak) {
+                    stats.longestStreak = stats.currentStreak;
+                }
+
+                if (timeSeconds < stats.personalBest) {
+                    stats.personalBest = timeSeconds;
+                }
+            }
+
+            stats.lastPlayedDate = dateKey;
+            stats.stats[dateKey].timestamp = new Date().getTime();
+            
+            localStorage.setItem(STORAGE_STATS, JSON.stringify(stats));
+        }
 
         // Initialize date display
         const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -334,7 +456,21 @@
                 item.textContent = pieceName;
                 item.onclick = () => selectPiece(pieceName);
                 item.id = `piece-${pieceName}`;
+                if (gameState.placedPieces.has(pieceName)) {
+                    item.classList.add('placed');
+                }
                 tray.appendChild(item);
+            });
+        }
+
+        function updatePieceTrayUI() {
+            Object.keys(pieces).forEach(pieceName => {
+                const item = document.getElementById(`piece-${pieceName}`);
+                if (gameState.placedPieces.has(pieceName)) {
+                    item.classList.add('placed');
+                } else {
+                    item.classList.remove('placed');
+                }
             });
         }
 
@@ -366,6 +502,37 @@
             rotateClockwise();
         }
 
+        function checkWinCondition() {
+            // Get all calendar squares that need to be covered
+            const allSquares = [];
+            for (let row = 0; row < gameState.grid.length; row++) {
+                for (let col = 0; col < gameState.grid[row].length; col++) {
+                    const square = gameState.grid[row][col];
+                    if (square.type !== 'empty') {
+                        // Skip the current date square
+                        const isCurrent = (square.type === 'month' && square.monthIndex === currentDate.monthIndex) ||
+                                         (square.type === 'day' && square.dayNumber === currentDate.dayNumber);
+                        if (!isCurrent) {
+                            allSquares.push(`${row},${col}`);
+                        }
+                    }
+                }
+            }
+            
+            // Check if all required squares are covered
+            return allSquares.every(sq => gameState.occupiedSquares.has(sq));
+        }
+
+        function showWinMessage() {
+            const statusMsg = document.getElementById('statusMessage');
+            statusMsg.textContent = '🎉 Congratulations! You solved the puzzle!';
+            statusMsg.className = 'status-message success';
+            
+            // Save stats (assuming 0 time for now, can track elapsed time later)
+            saveStats(true, 0);
+            saveGameState();
+        }
+
         function resetPuzzle() {
             gameState.placedPieces.clear();
             gameState.occupiedSquares.clear();
@@ -373,6 +540,8 @@
             gameState.selectedOrientation = 0;
             document.getElementById('selectedPiece').textContent = 'None';
             document.querySelectorAll('.piece-item').forEach(item => item.classList.remove('selected'));
+            document.getElementById('statusMessage').className = 'status-message';
+            updatePieceTrayUI();
             draw();
         }
 
@@ -476,12 +645,55 @@
             draw();
         });
 
-        canvas.addEventListener('click', (e) => {
-            if (!gameState.selectedPiece) return;
+        function getPlacedPieceAtMouse(canvasX, canvasY) {
+            const { row, col } = getGridPos(canvasX, canvasY);
+            
+            for (const [pieceName, placement] of gameState.placedPieces) {
+                const piece = getPiece(pieceName);
+                const coords = piece.orientations[placement.orientationIndex];
+                
+                for (const [x, y] of coords) {
+                    if (placement.row + y === row && placement.col + x === col) {
+                        return pieceName;
+                    }
+                }
+            }
+            return null;
+        }
 
+        canvas.addEventListener('click', (e) => {
             const rect = canvas.getBoundingClientRect();
             const canvasX = e.clientX - rect.left;
             const canvasY = e.clientY - rect.top;
+
+            // Check if clicking on an already placed piece
+            const clickedPiece = getPlacedPieceAtMouse(canvasX, canvasY);
+            if (clickedPiece && !gameState.selectedPiece) {
+                // Select the placed piece for repositioning
+                selectPiece(clickedPiece);
+                
+                // Remove it from the board temporarily
+                const placement = gameState.placedPieces.get(clickedPiece);
+                const piece = getPiece(clickedPiece);
+                const coords = piece.orientations[placement.orientationIndex];
+                const gridCoords = pieceToGridCoords(coords, placement.row, placement.col);
+                
+                gridCoords.forEach(([r, c]) => {
+                    gameState.occupiedSquares.delete(`${r},${c}`);
+                });
+                
+                gameState.placedPieces.delete(clickedPiece);
+                
+                // Update piece tray UI
+                updatePieceTrayUI();
+                
+                draw();
+                return;
+            }
+
+            // If no piece selected, don't place
+            if (!gameState.selectedPiece) return;
+
             const { row, col } = getGridPos(canvasX, canvasY);
 
             const piece = getPiece(gameState.selectedPiece);
@@ -505,8 +717,24 @@
                 document.getElementById(`piece-${gameState.selectedPiece}`).classList.remove('selected');
                 gameState.selectedPiece = null;
                 document.getElementById('selectedPiece').textContent = 'None';
+                
+                // Update piece tray UI
+                updatePieceTrayUI();
 
+                // Check win condition
+                if (checkWinCondition()) {
+                    showWinMessage();
+                }
+
+                // Save game state after each move
+                saveGameState();
                 draw();
+            } else {
+                // Invalid placement - show shake animation
+                canvas.classList.add('shake');
+                setTimeout(() => {
+                    canvas.classList.remove('shake');
+                }, 400);
             }
         });
 
@@ -526,13 +754,47 @@
             }
         });
 
+        // Mouse wheel events for rotation
+        canvas.addEventListener('wheel', (e) => {
+            if (!gameState.selectedPiece) return;
+            e.preventDefault();
+            if (e.deltaY < 0) {
+                rotateClockwise();
+            } else {
+                // Rotate counter-clockwise
+                if (gameState.selectedPiece) {
+                    const piece = getPiece(gameState.selectedPiece);
+                    gameState.selectedOrientation = (gameState.selectedOrientation - 1 + piece.orientations.length) % piece.orientations.length;
+                    draw();
+                }
+            }
+        }, { passive: false });
+
+        // Right-click for flip
+        canvas.addEventListener('contextmenu', (e) => {
+            if (!gameState.selectedPiece) return;
+            e.preventDefault();
+            flipPiece();
+        });
+
         // Make functions global
         window.rotateClockwise = rotateClockwise;
         window.flipPiece = flipPiece;
         window.resetPuzzle = resetPuzzle;
 
         // Initialize
+        // Check if it's a new day and reset if needed
+        if (shouldResetForNewDay()) {
+            resetForNewDay();
+        } else {
+            localStorage.setItem(STORAGE_LAST_DATE, `${currentDate.monthIndex}-${currentDate.dayNumber}`);
+        }
+        
         initPieceTray();
+        
+        // Try to load saved game state
+        const savedState = loadGameState();
+        
         draw();
     </script>
 </body>

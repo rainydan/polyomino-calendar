@@ -232,24 +232,29 @@ Considerations:
 ## Implementation Phases
 
 ### Phase 1: MVP
-- [ ] Grid layout with month/day squares
-- [ ] 12 polyomino pieces with shapes and colors
-- [ ] Basic placement mechanics (drag-and-drop)
-- [ ] Rotation controls
-- [ ] Win condition detection
-- [ ] localStorage for basic stats
+- [x] Grid layout with month/day squares
+- [x] 8 polyomino pieces with shapes and colors (7 pentominoes + 1 hexomino)
+- [x] Basic placement mechanics (click-to-place with preview)
+- [x] Rotation controls (keyboard: R, button, or wheel)
+- [x] Flip controls (keyboard: F, button, or right-click)
+- [x] Piece repositioning (click placed pieces to move them)
+- [x] Win condition detection
+- [x] localStorage for game state and statistics
+- [x] Invalid placement feedback (shake animation)
+- [x] Piece selection with visual feedback
 
 ### Phase 2: Polish
+- [ ] Daily reset logic (automatic at midnight)
 - [ ] Mobile responsiveness
-- [ ] Animation and visual feedback
-- [ ] Undo functionality
-- [ ] Improved piece tray UI
-- [ ] Hint system
+- [ ] Additional animation and visual feedback
+- [ ] Timer for solve time tracking
+- [ ] Improved piece tray UI (show placed status)
+- [ ] Hint system (optional)
 
 ### Phase 3: Enhancement
 - [ ] Social sharing features
 - [ ] Accessibility improvements
-- [ ] Sound effects
+- [ ] Sound effects (optional)
 - [ ] Theme customization
 - [ ] Analytics
 

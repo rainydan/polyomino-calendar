@@ -78,7 +78,7 @@ export const pieces = {
   N: {
     name: "N",
     color: "#4ECDC4",
-    orientations: generateOrientations([[0,0], [1,0], [1,1], [2,1], [2,2]])
+    orientations: generateOrientations([[0,0], [1,0], [1,1], [2,1], [3,1]])
   },
   P: {
     name: "P",
@@ -98,12 +98,12 @@ export const pieces = {
   Y: {
     name: "Y",
     color: "#EE5A6F",
-    orientations: generateOrientations([[0,0], [1,0], [1,1], [1,2], [2,1]])
+    orientations: generateOrientations([[0,0], [1,0], [2,0], [3,0], [1,1]])
   },
   Z: {
     name: "Z",
     color: "#00D2D3",
-    orientations: generateOrientations([[0,0], [1,0], [1,1], [2,1], [2,2]])
+    orientations: generateOrientations([[0,0], [0,1], [1,1], [2,1], [2,2]])
   },
 
   // Hexomino

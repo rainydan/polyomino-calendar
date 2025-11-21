@@ -56,6 +56,10 @@
             flex: 0 0 auto;
         }
 
+        .game-board .status-message {
+            margin-top: 15px;
+        }
+
         .canvas {
             border: 3px solid #333;
             border-radius: 8px;
@@ -262,6 +266,7 @@
         <div class="game-wrapper">
             <div class="game-board">
                 <canvas id="gameCanvas" class="canvas"></canvas>
+                <div id="statusMessage" class="status-message"></div>
             </div>
 
             <div class="info-panel">
@@ -303,8 +308,6 @@
                         Click piece to select
                     </div>
                 </div>
-
-                <div id="statusMessage" class="status-message"></div>
             </div>
         </div>
     </div>

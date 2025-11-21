@@ -55,7 +55,7 @@ export function initializeGrid() {
     const [row, col] = pos;
     grid[row][col] = {
       type: SQUARE_TYPE.MONTH,
-      label: MONTH_NAMES[monthIndex],
+      label: MONTH_NAMES[monthIndex].substring(0, 3),
       monthIndex
     };
   });

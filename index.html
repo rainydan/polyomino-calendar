@@ -446,21 +446,21 @@
             `Today: ${monthNames[currentDate.monthIndex]} ${currentDate.dayNumber}`;
 
         // Initialize piece tray
-        function initPieceTray() {
-            const tray = document.getElementById('pieceTray');
-            tray.innerHTML = '';
-            Object.keys(pieces).forEach(pieceName => {
-                const item = document.createElement('div');
-                item.className = 'piece-item';
-                item.textContent = pieceName;
-                item.onclick = () => selectPiece(pieceName);
-                item.id = `piece-${pieceName}`;
-                if (gameState.placedPieces.has(pieceName)) {
-                    item.classList.add('placed');
-                }
-                tray.appendChild(item);
-            });
-        }
+         function initPieceTray() {
+             const tray = document.getElementById('pieceTray');
+             tray.innerHTML = '';
+             Object.keys(pieces).forEach(pieceName => {
+                 const item = document.createElement('div');
+                 item.className = 'piece-item';
+                 item.textContent = pieceName;
+                 item.onclick = () => selectPieceFromTray(pieceName);
+                 item.id = `piece-${pieceName}`;
+                 if (gameState.placedPieces.has(pieceName)) {
+                     item.classList.add('placed');
+                 }
+                 tray.appendChild(item);
+             });
+         }
 
         function updatePieceTrayUI() {
             Object.keys(pieces).forEach(pieceName => {
@@ -501,6 +501,14 @@
              document.getElementById('selectedPiece').textContent = pieceName;
              
              draw();
+         }
+        
+        function selectPieceFromTray(pieceName) {
+             // Prevent selecting pieces from the tray if they're already placed
+             if (gameState.placedPieces.has(pieceName)) {
+                 return;
+             }
+             selectPiece(pieceName);
          }
 
         function rotateClockwise() {
@@ -711,52 +719,54 @@
         });
 
         function getPlacedPieceAtMouse(canvasX, canvasY) {
-            const { row, col } = getGridPos(canvasX, canvasY);
-            
-            for (const [pieceName, placement] of gameState.placedPieces) {
-                const piece = getPiece(pieceName);
-                const coords = piece.orientations[placement.orientationIndex];
-                
-                for (const [x, y] of coords) {
-                    if (placement.row + y === row && placement.col + x === col) {
-                        return pieceName;
-                    }
-                }
-            }
-            return null;
-        }
+             const { row, col } = getGridPos(canvasX, canvasY);
+             
+             for (const [pieceName, placement] of gameState.placedPieces) {
+                 const piece = getPiece(pieceName);
+                 const coords = piece.orientations[placement.orientationIndex];
+                 
+                 for (const [x, y] of coords) {
+                     if (placement.row + y === row && placement.col + x === col) {
+                         return pieceName;
+                     }
+                 }
+             }
+             return null;
+         }
 
-        canvas.addEventListener('click', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            const canvasX = e.clientX - rect.left;
-            const canvasY = e.clientY - rect.top;
+         canvas.addEventListener('click', (e) => {
+             const rect = canvas.getBoundingClientRect();
+             const canvasX = e.clientX - rect.left;
+             const canvasY = e.clientY - rect.top;
 
-            // Check if clicking on an already placed piece
-            const clickedPiece = getPlacedPieceAtMouse(canvasX, canvasY);
-            if (clickedPiece && !gameState.selectedPiece) {
-                // Select the placed piece for repositioning
-                selectPiece(clickedPiece);
-                
-                // Remove it from the board temporarily
-                const placement = gameState.placedPieces.get(clickedPiece);
-                const piece = getPiece(clickedPiece);
-                const coords = piece.orientations[placement.orientationIndex];
-                const gridCoords = pieceToGridCoords(coords, placement.row, placement.col);
-                
-                gridCoords.forEach(([r, c]) => {
-                    gameState.occupiedSquares.delete(`${r},${c}`);
-                });
-                
-                gameState.placedPieces.delete(clickedPiece);
-                
-                // Update piece tray UI
-                updatePieceTrayUI();
-                
-                draw();
-                return;
-            }
+             // Check if clicking on an already placed piece
+             const clickedPiece = getPlacedPieceAtMouse(canvasX, canvasY);
+             if (clickedPiece && !gameState.selectedPiece) {
+                 // Select the placed piece for repositioning
+                 selectPiece(clickedPiece);
+                 
+                 // Remove it from the board temporarily
+                 gameState.placedPieces.delete(clickedPiece);
+                 
+                 // Rebuild occupiedSquares from remaining pieces
+                 gameState.occupiedSquares.clear();
+                 gameState.placedPieces.forEach((placement, pieceName) => {
+                     const piece = getPiece(pieceName);
+                     const coords = piece.orientations[placement.orientationIndex];
+                     const gridCoords = pieceToGridCoords(coords, placement.row, placement.col);
+                     gridCoords.forEach(([r, c]) => {
+                         gameState.occupiedSquares.add(`${r},${c}`);
+                     });
+                 });
+                 
+                 // Update piece tray UI
+                 updatePieceTrayUI();
+                 
+                 draw();
+                 return;
+             }
 
-            // If no piece selected, don't place
+             // If no piece selected, don't place
              if (!gameState.selectedPiece) return;
 
              const { row, col } = getGridPos(canvasX, canvasY);

@@ -483,6 +483,12 @@
         }
 
         function selectPiece(pieceName) {
+             // If already selected, deselect instead
+             if (gameState.selectedPiece === pieceName) {
+                 deselectPiece();
+                 return;
+             }
+             
              // Deselect previous
              if (gameState.selectedPiece) {
                  document.getElementById(`piece-${gameState.selectedPiece}`).classList.remove('selected');

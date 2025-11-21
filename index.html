@@ -473,20 +473,29 @@
             });
         }
 
-        function selectPiece(pieceName) {
-            // Deselect previous
+        function deselectPiece() {
             if (gameState.selectedPiece) {
                 document.getElementById(`piece-${gameState.selectedPiece}`).classList.remove('selected');
             }
-            
-            gameState.selectedPiece = pieceName;
-            gameState.selectedOrientation = 0;
-            
-            document.getElementById(`piece-${pieceName}`).classList.add('selected');
-            document.getElementById('selectedPiece').textContent = pieceName;
-            
+            gameState.selectedPiece = null;
+            document.getElementById('selectedPiece').textContent = 'None';
             draw();
         }
+
+        function selectPiece(pieceName) {
+             // Deselect previous
+             if (gameState.selectedPiece) {
+                 document.getElementById(`piece-${gameState.selectedPiece}`).classList.remove('selected');
+             }
+             
+             gameState.selectedPiece = pieceName;
+             gameState.selectedOrientation = 0;
+             
+             document.getElementById(`piece-${pieceName}`).classList.add('selected');
+             document.getElementById('selectedPiece').textContent = pieceName;
+             
+             draw();
+         }
 
         function rotateClockwise() {
             if (!gameState.selectedPiece) return;
@@ -739,6 +748,10 @@
 
         canvas.addEventListener('mouseleave', () => {
             gameState.mousePos = { x: -1000, y: -1000 };
+            // If a piece is selected, return it to the tray
+            if (gameState.selectedPiece) {
+                deselectPiece();
+            }
             draw();
         });
 
@@ -780,6 +793,7 @@
         window.rotateClockwise = rotateClockwise;
         window.flipPiece = flipPiece;
         window.resetPuzzle = resetPuzzle;
+        window.deselectPiece = deselectPiece;
 
         // Initialize
         // Check if it's a new day and reset if needed

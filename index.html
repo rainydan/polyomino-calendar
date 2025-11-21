@@ -511,10 +511,30 @@
         }
 
         function flipPiece() {
-            if (!gameState.selectedPiece) return;
-            // For now, just cycle through orientations as flip effect
-            rotateClockwise();
-        }
+             if (!gameState.selectedPiece) return;
+             const piece = getPiece(gameState.selectedPiece);
+             const currentCoords = piece.orientations[gameState.selectedOrientation];
+             
+             // Find which orientation is the horizontal flip of current
+             const minX = Math.min(...currentCoords.map(([x]) => x));
+             const maxX = Math.max(...currentCoords.map(([x]) => x));
+             const center = (minX + maxX) / 2;
+             
+             // Create flipped version
+             const flipped = currentCoords.map(([x, y]) => [2 * center - x, y]);
+             const minFlippedX = Math.min(...flipped.map(([x]) => x));
+             const normalizedFlipped = flipped.map(([x, y]) => [x - minFlippedX, y]).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+             
+             // Find this flipped version in orientations
+             for (let i = 0; i < piece.orientations.length; i++) {
+                 const oriented = piece.orientations[i].slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+                 if (JSON.stringify(oriented) === JSON.stringify(normalizedFlipped)) {
+                     gameState.selectedOrientation = i;
+                     draw();
+                     return;
+                 }
+             }
+         }
 
         function checkWinCondition() {
             // Get all calendar squares that need to be covered
@@ -619,18 +639,49 @@
             ctx.globalAlpha = 1;
         }
 
+        function getPieceCenter(coords) {
+             // Find the center square (most central square in the piece)
+             if (coords.length === 0) return [0, 0];
+             
+             const minX = Math.min(...coords.map(([x]) => x));
+             const maxX = Math.max(...coords.map(([x]) => x));
+             const minY = Math.min(...coords.map(([, y]) => y));
+             const maxY = Math.max(...coords.map(([, y]) => y));
+             
+             const centerX = Math.round((minX + maxX) / 2);
+             const centerY = Math.round((minY + maxY) / 2);
+             
+             // Find the closest square to this center point
+             let closest = coords[0];
+             let minDist = Math.pow(coords[0][0] - centerX, 2) + Math.pow(coords[0][1] - centerY, 2);
+             
+             for (const coord of coords) {
+                 const dist = Math.pow(coord[0] - centerX, 2) + Math.pow(coord[1] - centerY, 2);
+                 if (dist < minDist) {
+                     minDist = dist;
+                     closest = coord;
+                 }
+             }
+             return closest;
+         }
+
         function drawPreview() {
-            if (!gameState.selectedPiece) return;
+             if (!gameState.selectedPiece) return;
 
-            const piece = getPiece(gameState.selectedPiece);
-            const coords = piece.orientations[gameState.selectedOrientation];
-            const { row, col } = getGridPos(gameState.mousePos.x, gameState.mousePos.y);
+             const piece = getPiece(gameState.selectedPiece);
+             const coords = piece.orientations[gameState.selectedOrientation];
+             const { row, col } = getGridPos(gameState.mousePos.x, gameState.mousePos.y);
+             
+             // Adjust placement so cursor is on piece's center
+             const [centerX, centerY] = getPieceCenter(coords);
+             const adjustedRow = row - centerY;
+             const adjustedCol = col - centerX;
 
-            const gridCoords = pieceToGridCoords(coords, row, col);
-            const isValid = isValidPlacement(gridCoords, gameState.occupiedSquares);
+             const gridCoords = pieceToGridCoords(coords, adjustedRow, adjustedCol);
+             const isValid = isValidPlacement(gridCoords, gameState.occupiedSquares);
 
-            drawPiece(coords, row, col, piece.color, isValid ? 0.4 : 0.2);
-        }
+             drawPiece(coords, adjustedRow, adjustedCol, piece.color, isValid ? 0.4 : 0.2);
+         }
 
         function draw() {
             ctx.fillStyle = '#f5f5f5';
@@ -706,21 +757,27 @@
             }
 
             // If no piece selected, don't place
-            if (!gameState.selectedPiece) return;
+             if (!gameState.selectedPiece) return;
 
-            const { row, col } = getGridPos(canvasX, canvasY);
+             const { row, col } = getGridPos(canvasX, canvasY);
 
-            const piece = getPiece(gameState.selectedPiece);
-            const coords = piece.orientations[gameState.selectedOrientation];
-            const gridCoords = pieceToGridCoords(coords, row, col);
+             const piece = getPiece(gameState.selectedPiece);
+             const coords = piece.orientations[gameState.selectedOrientation];
+             
+             // Adjust placement so cursor is on piece's center
+             const [centerX, centerY] = getPieceCenter(coords);
+             const adjustedRow = row - centerY;
+             const adjustedCol = col - centerX;
+             
+             const gridCoords = pieceToGridCoords(coords, adjustedRow, adjustedCol);
 
-            if (isValidPlacement(gridCoords, gameState.occupiedSquares)) {
-                // Place piece
-                gameState.placedPieces.set(gameState.selectedPiece, {
-                    row,
-                    col,
-                    orientationIndex: gameState.selectedOrientation
-                });
+             if (isValidPlacement(gridCoords, gameState.occupiedSquares)) {
+                 // Place piece
+                 gameState.placedPieces.set(gameState.selectedPiece, {
+                     row: adjustedRow,
+                     col: adjustedCol,
+                     orientationIndex: gameState.selectedOrientation
+                 });
 
                 // Mark squares as occupied
                 gridCoords.forEach(([r, c]) => {

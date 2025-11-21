@@ -23,14 +23,23 @@ function rotateCoords(coords) {
 }
 
 /**
- * Helper function to flip coordinates horizontally
+ * Helper function to flip coordinates horizontally (around vertical axis)
+ * Reflects each square based on its distance from the center
  * @param {Array} coords - Array of [x, y] pairs
  * @returns {Array} Flipped coordinates
  */
 function flipCoords(coords) {
-  // Flip: (x,y) -> (-x, y), then normalize
-  const maxX = Math.max(...coords.map(([x]) => x));
-  return coords.map(([x, y]) => [maxX - x, y]);
+   // Find the center of the piece
+   const minX = Math.min(...coords.map(([x]) => x));
+   const maxX = Math.max(...coords.map(([x]) => x));
+   const center = (minX + maxX) / 2;
+   
+   // Flip: each x becomes 2*center - x, then normalize
+   const flipped = coords.map(([x, y]) => [2 * center - x, y]);
+   
+   // Normalize to positive coordinates
+   const minFlippedX = Math.min(...flipped.map(([x]) => x));
+   return flipped.map(([x, y]) => [x - minFlippedX, y]);
 }
 
 /**

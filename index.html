@@ -260,6 +260,7 @@
     <div class="container">
         <div class="header">
             <h1>📅 Polyomino Calendar Puzzle</h1>
+            <p id="dateHeading" style="font-size: 18px; font-weight: bold; color: #667eea; margin: 10px 0;"></p>
             <p>Place all pieces to cover every day and month except today</p>
         </div>
 
@@ -270,11 +271,6 @@
             </div>
 
             <div class="info-panel">
-                <div class="info-section">
-                    <h3>Today's Date</h3>
-                    <div class="date-display" id="dateDisplay"></div>
-                </div>
-
                 <div class="info-section">
                     <h3>Pieces to Place</h3>
                     <div class="piece-tray" id="pieceTray"></div>
@@ -446,8 +442,8 @@
         // Initialize date display
         const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
                           'July', 'August', 'September', 'October', 'November', 'December'];
-        document.getElementById('dateDisplay').textContent = 
-            `${monthNames[currentDate.monthIndex]} ${currentDate.dayNumber}`;
+        document.getElementById('dateHeading').textContent = 
+            `Today: ${monthNames[currentDate.monthIndex]} ${currentDate.dayNumber}`;
 
         // Initialize piece tray
         function initPieceTray() {

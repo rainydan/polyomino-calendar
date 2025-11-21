@@ -22,10 +22,11 @@ A web-based interactive puzzle game where players use polyomino pieces to cover 
 
 1. **Objective**: Place all pieces on the calendar grid to cover all month and day squares except the current month and day
 2. **Valid Placement**: Pieces must not overlap and must remain fully within the puzzle boundary
-3. **Piece Rotation**: Pieces can be rotated (and potentially flipped)
-4. **Win Condition**: All 41 required squares are covered and no pieces are off the grid
-5. **Daily Reset**: Puzzle resets at midnight (local time), creating a new daily puzzle based on the current date
-6. **Hints/Undo**: Optional features for gameplay assistance
+3. **Each Piece Only Once**: Each piece can only be selected from the tray and placed once. Once a piece is placed, it cannot be selected again from the tray. However, placed pieces can be clicked on the board to pick them up and reposition them.
+4. **Piece Rotation**: Pieces can be rotated (and potentially flipped) before placement
+5. **Win Condition**: All 41 required squares are covered and no pieces are off the grid
+6. **Daily Reset**: Puzzle resets at midnight (local time), creating a new daily puzzle based on the current date
+7. **Hints/Undo**: Optional features for gameplay assistance
 
 ## Placement Preview & Validation
 
@@ -127,8 +128,8 @@ Considerations:
   - User clicks a target grid square to place the piece
   - Piece appears at the clicked location with its current orientation
   - Click another piece to deselect and select a new one
-  - **Piece Repositioning**: Placed pieces can be clicked to select them, then repositioned like unplaced pieces
-  - This allows flexible rearrangement without explicit undo/redo
+  - **Piece Repositioning**: Placed pieces can be clicked directly on the board to pick them up and reposition them
+  - **One-time Tray Selection**: Once a piece is placed, it cannot be selected again from the tray. Only placed pieces can be picked up from the board for repositioning
 
 - **Rotation/Flip Controls** (while a piece is selected):
   - **Keyboard**: 
@@ -147,6 +148,46 @@ Considerations:
 - **Clear visual distinction**: User immediately sees if a placement is possible before attempting to click
 
 - Highlight "current date" square for emphasis
+
+## Win State UX and Celebrations
+
+### Win Condition Detection
+- Game detects when all 41 required squares (12 months + 31 days - current month - current day) are covered by placed pieces
+- Check occurs after every piece placement
+- Prevents further piece placement once puzzle is solved
+
+### Visual Feedback on Completion
+- **Success Message**: Display prominent "🎉 Congratulations! You solved the puzzle!" message
+  - Centered on screen in a success-styled box (green background, dark text)
+  - Message remains visible after completion
+  - Clear visual celebration of achievement
+
+- **Appearance Changes**:
+  - Board state is frozen (no further interaction possible)
+  - All pieces remain visible in their final positions
+  - Current date square remains highlighted as empty
+
+### Celebration Effects (Progressive Enhancement)
+- **Level 1 - MVP**: Static success message with green styling
+- **Level 2 - Polish**: Optional confetti animation or subtle background color change
+- **Level 3 - Enhancement**: Sound effects (optional, with mute option), particle effects, or other visual flourishes
+
+### Statistics Recording
+- **Automatic Recording**: Upon win, game automatically logs:
+  - Solve time (elapsed seconds from page load or game start)
+  - Current date solved (month-day combination)
+  - Timestamp of completion
+  - Win is marked in statistics for that day
+
+- **Statistics Display** (future):
+  - Show current streak count
+  - Display personal best time for the day
+  - Link to statistics dashboard or summary
+
+### Post-Win Options (Future Enhancement)
+- **Share Results**: Copy solve time and date to clipboard or generate sharable text
+- **New Game**: Link to refresh page for next day's puzzle (if date hasn't changed)
+- **Statistics**: Quick link to view win history and streaks
 
 ## Technical Architecture
 

@@ -40,3 +40,7 @@ npx http-server
 - `index.html` - Main game interface and canvas rendering
 - `grid.js` - Calendar grid layout and placement validation
 - `pieces.js` - Polyomino piece definitions and orientations
+
+## AI disclosure
+
+Much of this game is made via conversation with the coding agent [Amp](https://ampcode.com/) by Sourcegraph in /free mode.

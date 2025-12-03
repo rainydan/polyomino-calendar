@@ -325,7 +325,7 @@
                             <button class="secondary" onclick="flipPiece()">↔ Flip</button>
                         </div>
                         <div class="control-hints">
-                            <strong>Keyboard:</strong> R = Rotate | F = Flip<br/>
+                            <strong>Keyboard:</strong> R = Rotate | F = Flip | Escape = Remove<br/>
                             <strong>Mouse:</strong> Scroll wheel = Rotate | Right-click = Flip
                         </div>
                     </div>
@@ -341,6 +341,7 @@
                         <strong>Keyboard:</strong><br/>
                         R = Rotate<br/>
                         F = Flip<br/>
+                        Escape = Remove piece<br/>
                         Click piece to select
                     </div>
                 </div>
@@ -880,6 +881,35 @@
             } else if (e.key.toLowerCase() === 'f') {
                 e.preventDefault();
                 flipPiece();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                const pieceAtMouse = getPlacedPieceAtMouse(gameState.mousePos.x, gameState.mousePos.y);
+                if (pieceAtMouse) {
+                    // Remove the piece from the board
+                    gameState.placedPieces.delete(pieceAtMouse);
+                    
+                    // Rebuild occupiedSquares from remaining pieces
+                    gameState.occupiedSquares.clear();
+                    gameState.placedPieces.forEach((placement, pieceName) => {
+                        const piece = getPiece(pieceName);
+                        const coords = piece.orientations[placement.orientationIndex];
+                        const gridCoords = pieceToGridCoords(coords, placement.row, placement.col);
+                        gridCoords.forEach(([r, c]) => {
+                            gameState.occupiedSquares.add(`${r},${c}`);
+                        });
+                    });
+                    
+                    // Update piece tray UI
+                    updatePieceTrayUI();
+                    
+                    // Clear status message
+                    document.getElementById('statusMessage').className = 'status-message';
+                    
+                    // Save game state
+                    saveGameState();
+                    
+                    draw();
+                }
             }
         });
 

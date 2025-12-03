@@ -133,10 +133,58 @@
         }
 
         .piece-item.placed {
-            opacity: 0.5;
-            cursor: default;
+            opacity: 0.7;
+            cursor: pointer;
             background: #e8f5e9;
             border-color: #4caf50;
+            position: relative;
+        }
+
+        .piece-item.placed:hover {
+            opacity: 1;
+            border-color: #2e7d32;
+            background: #c8e6c9;
+            transform: translateY(-2px);
+        }
+
+        .piece-item.highlight {
+            border-color: #ff6b6b;
+            box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.3);
+        }
+
+        .tooltip {
+            visibility: hidden;
+            position: absolute;
+            z-index: 1000;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            padding: 6px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            white-space: nowrap;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: none;
+        }
+
+        .tooltip::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #333 transparent transparent transparent;
+        }
+
+        .piece-item.placed:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
         }
 
         .controls {
@@ -374,7 +422,8 @@
             selectedPiece: null,
             selectedOrientation: 0,
             occupiedSquares: new Set(),
-            mousePos: { x: 0, y: 0 }
+            mousePos: { x: 0, y: 0 },
+            highlightedPiece: null // Piece name to highlight on grid
         };
 
         const currentDate = getCurrentDate();
@@ -492,31 +541,93 @@
 
         // Initialize piece tray
          function initPieceTray() {
-             const tray = document.getElementById('pieceTray');
-             tray.innerHTML = '';
-             Object.keys(pieces).forEach(pieceName => {
-                 const item = document.createElement('div');
-                 item.className = 'piece-item';
-                 item.textContent = pieceName;
-                 item.onclick = () => selectPieceFromTray(pieceName);
-                 item.id = `piece-${pieceName}`;
-                 if (gameState.placedPieces.has(pieceName)) {
-                     item.classList.add('placed');
-                 }
-                 tray.appendChild(item);
-             });
-         }
+              const tray = document.getElementById('pieceTray');
+              tray.innerHTML = '';
+              Object.keys(pieces).forEach(pieceName => {
+                  const item = document.createElement('div');
+                  item.className = 'piece-item';
+                  item.textContent = pieceName;
+                  item.id = `piece-${pieceName}`;
+                  
+                  if (gameState.placedPieces.has(pieceName)) {
+                      item.classList.add('placed');
+                      
+                      // Add tooltip
+                      const tooltip = document.createElement('div');
+                      tooltip.className = 'tooltip';
+                      tooltip.textContent = 'Remove from grid';
+                      item.appendChild(tooltip);
+                      
+                      // Click handler for placed pieces - remove from grid
+                      item.onclick = () => removePieceFromGrid(pieceName);
+                      
+                      // Hover handlers for highlight
+                      item.onmouseenter = () => {
+                          item.classList.add('highlight');
+                          gameState.highlightedPiece = pieceName;
+                          draw();
+                      };
+                      item.onmouseleave = () => {
+                          item.classList.remove('highlight');
+                          gameState.highlightedPiece = null;
+                          draw();
+                      };
+                  } else {
+                      // Click handler for unplaced pieces - select
+                      item.onclick = () => selectPieceFromTray(pieceName);
+                  }
+                  
+                  tray.appendChild(item);
+              });
+          }
 
         function updatePieceTrayUI() {
-            Object.keys(pieces).forEach(pieceName => {
-                const item = document.getElementById(`piece-${pieceName}`);
-                if (gameState.placedPieces.has(pieceName)) {
-                    item.classList.add('placed');
-                } else {
-                    item.classList.remove('placed');
-                }
-            });
-        }
+             Object.keys(pieces).forEach(pieceName => {
+                 const item = document.getElementById(`piece-${pieceName}`);
+                 if (gameState.placedPieces.has(pieceName)) {
+                     item.classList.add('placed');
+                     
+                     // Update click handler for placed piece
+                     item.onclick = () => removePieceFromGrid(pieceName);
+                     
+                     // Update hover handlers for highlight
+                     item.onmouseenter = () => {
+                         item.classList.add('highlight');
+                         gameState.highlightedPiece = pieceName;
+                         draw();
+                     };
+                     item.onmouseleave = () => {
+                         item.classList.remove('highlight');
+                         gameState.highlightedPiece = null;
+                         draw();
+                     };
+                     
+                     // Add tooltip if not already present
+                     if (!item.querySelector('.tooltip')) {
+                         const tooltip = document.createElement('div');
+                         tooltip.className = 'tooltip';
+                         tooltip.textContent = 'Remove from grid';
+                         item.appendChild(tooltip);
+                     }
+                 } else {
+                     item.classList.remove('placed');
+                     item.classList.remove('highlight');
+                     
+                     // Update click handler for unplaced piece
+                     item.onclick = () => selectPieceFromTray(pieceName);
+                     
+                     // Remove event handlers
+                     item.onmouseenter = null;
+                     item.onmouseleave = null;
+                     
+                     // Remove tooltip
+                     const tooltip = item.querySelector('.tooltip');
+                     if (tooltip) {
+                         tooltip.remove();
+                     }
+                 }
+             });
+         }
 
         function deselectPiece() {
             if (gameState.selectedPiece) {
@@ -632,6 +743,33 @@
             draw();
         }
 
+        function removePieceFromGrid(pieceName) {
+            // Remove the piece from the board
+            gameState.placedPieces.delete(pieceName);
+            
+            // Rebuild occupiedSquares from remaining pieces
+            gameState.occupiedSquares.clear();
+            gameState.placedPieces.forEach((placement, name) => {
+                const piece = getPiece(name);
+                const coords = piece.orientations[placement.orientationIndex];
+                const gridCoords = pieceToGridCoords(coords, placement.row, placement.col);
+                gridCoords.forEach(([r, c]) => {
+                    gameState.occupiedSquares.add(`${r},${c}`);
+                });
+            });
+            
+            // Update piece tray UI
+            updatePieceTrayUI();
+            
+            // Clear status message
+            document.getElementById('statusMessage').className = 'status-message';
+            
+            // Save game state
+            saveGameState();
+            
+            draw();
+        }
+
         function getGridPos(canvasX, canvasY) {
             const col = Math.floor((canvasX - PADDING) / SQUARE_SIZE);
             const row = Math.floor((canvasY - PADDING) / SQUARE_SIZE);
@@ -673,7 +811,7 @@
             }
         }
 
-        function drawPiece(pieceCoords, startRow, startCol, color, opacity = 1) {
+        function drawPiece(pieceCoords, startRow, startCol, color, opacity = 1, isHighlighted = false) {
             ctx.globalAlpha = opacity;
             ctx.fillStyle = color;
             
@@ -684,8 +822,15 @@
                 const canvasY = PADDING + gridRow * SQUARE_SIZE;
                 
                 ctx.fillRect(canvasX, canvasY, SQUARE_SIZE, SQUARE_SIZE);
-                ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-                ctx.lineWidth = 2;
+                
+                // Draw highlight border if highlighted
+                if (isHighlighted) {
+                    ctx.strokeStyle = '#ff6b6b';
+                    ctx.lineWidth = 4;
+                } else {
+                    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+                    ctx.lineWidth = 2;
+                }
                 ctx.strokeRect(canvasX, canvasY, SQUARE_SIZE, SQUARE_SIZE);
             });
             
@@ -746,7 +891,8 @@
             gameState.placedPieces.forEach((placement, pieceName) => {
                 const piece = getPiece(pieceName);
                 const coords = piece.orientations[placement.orientationIndex];
-                drawPiece(coords, placement.row, placement.col, piece.color, 0.8);
+                const isHighlighted = pieceName === gameState.highlightedPiece;
+                drawPiece(coords, placement.row, placement.col, piece.color, 0.8, isHighlighted);
             });
 
             // Draw preview

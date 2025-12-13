@@ -80,6 +80,7 @@
             background: #f5f5f5;
             cursor: crosshair;
             display: block;
+            touch-action: manipulation;
         }
 
         .info-panel {
@@ -158,6 +159,22 @@
             border-color: #667eea;
             background: #f0f2ff;
             transform: translateY(-2px);
+        }
+        
+        /* Disable hover effects on touch devices */
+        @media (hover: none) and (pointer: coarse) {
+            .piece-item:hover {
+                border-color: #ddd;
+                background: white;
+                transform: none;
+            }
+            
+            .piece-item.placed:hover {
+                opacity: 0.7;
+                border-color: #4caf50;
+                background: #e8f5e9;
+                transform: none;
+            }
         }
 
         .piece-item.selected {
@@ -453,15 +470,77 @@
         import { initializeGrid, getCurrentDate, GRID_ROWS, GRID_COLS, isValidPlacement, pieceToGridCoords } from './grid.js';
         import { pieces, getPiece, getPieceOrientation, nextOrientation, prevOrientation } from './pieces.js';
 
+        // Detect touch capability
+        const isTouchDevice = () => {
+            return (('ontouchstart' in window) ||
+                    (navigator.maxTouchPoints > 0) ||
+                    (navigator.msMaxTouchPoints > 0));
+        };
+        
+        const hasTouch = isTouchDevice();
+        
+        // Prevent zoom gestures on touch devices
+        if (hasTouch) {
+            // Prevent double-tap zoom
+            let lastTouchTime = 0;
+            document.addEventListener('touchstart', (e) => {
+                const currentTime = new Date().getTime();
+                const tapLength = currentTime - lastTouchTime;
+                
+                // If two taps within 300ms, prevent zoom
+                if (tapLength < 300 && tapLength > 0) {
+                    e.preventDefault();
+                }
+                lastTouchTime = currentTime;
+            }, { passive: false });
+            
+            // Prevent pinch zoom
+            document.addEventListener('touchmove', (e) => {
+                if (e.touches.length > 1) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+        }
+
         // Canvas setup
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         
-        const SQUARE_SIZE = 50;
+        // Responsive SQUARE_SIZE based on viewport width
+        function getResponsiveSquareSize() {
+            const vw = Math.min(window.innerWidth, 1024); // Cap at 1024px
+            
+            if (vw < 320) {
+                return 30; // Very small phones
+            } else if (vw < 360) {
+                return 35; // Small phones (iPhone SE)
+            } else if (vw < 480) {
+                return 40; // Mobile phones
+            } else if (vw < 768) {
+                return 45; // Larger phones, small tablets
+            } else {
+                return 50; // Tablets and desktop (default)
+            }
+        }
+        
+        let SQUARE_SIZE = getResponsiveSquareSize();
         const PADDING = 20;
-
-        canvas.width = GRID_COLS * SQUARE_SIZE + PADDING * 2;
-        canvas.height = GRID_ROWS * SQUARE_SIZE + PADDING * 2;
+        
+        // DPI scaling for high-DPI displays (retina, etc.)
+        const dpr = window.devicePixelRatio || 1;
+        const logicalWidth = GRID_COLS * SQUARE_SIZE + PADDING * 2;
+        const logicalHeight = GRID_ROWS * SQUARE_SIZE + PADDING * 2;
+        
+        // Set canvas drawing surface to match device pixel ratio
+        canvas.width = logicalWidth * dpr;
+        canvas.height = logicalHeight * dpr;
+        
+        // Scale canvas element to match logical size
+        canvas.style.width = logicalWidth + 'px';
+        canvas.style.height = logicalHeight + 'px';
+        
+        // Scale drawing context by DPR
+        ctx.scale(dpr, dpr);
 
         // Game state
         const gameState = {
@@ -1208,6 +1287,34 @@
             
             navigator.vibrate(patterns[pattern] || pattern);
         }
+
+        // Handle window resize for responsive canvas sizing
+        function resizeCanvas() {
+            const newSquareSize = getResponsiveSquareSize();
+            
+            // Only resize if square size changed
+            if (newSquareSize !== SQUARE_SIZE) {
+                SQUARE_SIZE = newSquareSize;
+                
+                const newLogicalWidth = GRID_COLS * SQUARE_SIZE + PADDING * 2;
+                const newLogicalHeight = GRID_ROWS * SQUARE_SIZE + PADDING * 2;
+                
+                // Update canvas dimensions
+                canvas.width = newLogicalWidth * dpr;
+                canvas.height = newLogicalHeight * dpr;
+                canvas.style.width = newLogicalWidth + 'px';
+                canvas.style.height = newLogicalHeight + 'px';
+                
+                // Re-scale context
+                ctx.scale(dpr, dpr);
+                
+                // Redraw with new dimensions
+                draw();
+            }
+        }
+        
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('orientationchange', resizeCanvas);
 
         // Make functions global
         window.rotateClockwise = rotateClockwise;

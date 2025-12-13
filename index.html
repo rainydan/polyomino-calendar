@@ -989,9 +989,15 @@
             }
         }
 
-        function drawPiece(pieceCoords, startRow, startCol, color, opacity = 1, isHighlighted = false) {
+        function drawPiece(pieceCoords, startRow, startCol, color, opacity = 1, isHighlighted = false, isActive = false) {
             ctx.globalAlpha = opacity;
-            ctx.fillStyle = color;
+            
+            // Use distinct color for active pieces
+            if (isActive) {
+                ctx.fillStyle = '#FF6B9D';  // Bright pink/magenta for active pieces
+            } else {
+                ctx.fillStyle = color;
+            }
             
             pieceCoords.forEach(([x, y]) => {
                 const gridRow = startRow + y;
@@ -1001,8 +1007,11 @@
                 
                 ctx.fillRect(canvasX, canvasY, SQUARE_SIZE, SQUARE_SIZE);
                 
-                // Draw highlight border if highlighted
-                if (isHighlighted) {
+                // Draw highlight border - make active pieces more visible
+                if (isActive) {
+                    ctx.strokeStyle = '#C41E3A';  // Dark red for active piece border
+                    ctx.lineWidth = 3;
+                } else if (isHighlighted) {
                     ctx.strokeStyle = '#ff6b6b';
                     ctx.lineWidth = 4;
                 } else {
@@ -1010,6 +1019,18 @@
                     ctx.lineWidth = 2;
                 }
                 ctx.strokeRect(canvasX, canvasY, SQUARE_SIZE, SQUARE_SIZE);
+                
+                // Add diagonal pattern/texture for active pieces to make them even more distinct
+                if (isActive) {
+                    ctx.strokeStyle = 'rgba(196, 30, 58, 0.3)';
+                    ctx.lineWidth = 1;
+                    for (let i = 0; i < SQUARE_SIZE; i += 4) {
+                        ctx.beginPath();
+                        ctx.moveTo(canvasX + i, canvasY);
+                        ctx.lineTo(canvasX + i + SQUARE_SIZE, canvasY + SQUARE_SIZE);
+                        ctx.stroke();
+                    }
+                }
             });
             
             ctx.globalAlpha = 1;
@@ -1056,7 +1077,9 @@
              const gridCoords = pieceToGridCoords(coords, adjustedRow, adjustedCol);
              const isValid = isValidPlacement(gridCoords, gameState.occupiedSquares);
 
-             drawPiece(coords, adjustedRow, adjustedCol, piece.color, isValid ? 0.4 : 0.2);
+             // Draw active piece with full opacity and distinct appearance
+             // Only reduce opacity if placement is invalid
+             drawPiece(coords, adjustedRow, adjustedCol, piece.color, isValid ? 1.0 : 0.5, false, true);
          }
 
         function draw() {

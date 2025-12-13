@@ -416,7 +416,8 @@
                         </div>
                         <div class="control-hints">
                             <strong>Keyboard:</strong> R = Rotate | F = Flip | Escape = Remove<br/>
-                            <strong>Mouse:</strong> Scroll wheel = Rotate | Right-click = Flip
+                            <strong>Mouse:</strong> Scroll wheel = Rotate | Right-click = Flip<br/>
+                            <strong>Touch:</strong> Swipe left = Rotate | Swipe up = Flip
                         </div>
                     </div>
 
@@ -1068,6 +1069,62 @@
             }
             draw();
         });
+
+        // Touch swipe gestures for rotation and flip
+        let touchStartX = 0;
+        let touchStartY = 0;
+        const SWIPE_THRESHOLD = 50; // Minimum pixels to register swipe
+        const SWIPE_TIME_THRESHOLD = 500; // Max milliseconds for swipe
+        let touchStartTime = 0;
+
+        canvas.addEventListener('touchstart', (e) => {
+            if (!gameState.selectedPiece) return;
+            
+            const touch = e.touches[0];
+            touchStartX = touch.clientX;
+            touchStartY = touch.clientY;
+            touchStartTime = Date.now();
+        });
+
+        canvas.addEventListener('touchend', (e) => {
+            if (!gameState.selectedPiece) return;
+            
+            const touch = e.changedTouches[0];
+            const touchEndX = touch.clientX;
+            const touchEndY = touch.clientY;
+            const touchDuration = Date.now() - touchStartTime;
+            
+            // Only register if swipe was quick enough
+            if (touchDuration > SWIPE_TIME_THRESHOLD) return;
+            
+            const deltaX = touchEndX - touchStartX;
+            const deltaY = touchEndY - touchStartY;
+            const absDeltaX = Math.abs(deltaX);
+            const absDeltaY = Math.abs(deltaY);
+            
+            // Detect swipe direction
+            // Horizontal swipes (left/right) for rotation
+            if (absDeltaX > SWIPE_THRESHOLD && absDeltaX > absDeltaY) {
+                if (deltaX > 0) {
+                    // Swipe right - rotate counter-clockwise
+                    const piece = getPiece(gameState.selectedPiece);
+                    gameState.selectedOrientation = (gameState.selectedOrientation - 1 + piece.orientations.length) % piece.orientations.length;
+                    triggerHaptic('medium');
+                    draw();
+                } else {
+                    // Swipe left - rotate clockwise
+                    rotateClockwise();
+                }
+            }
+            // Vertical swipes (up/down) for flip
+            else if (absDeltaY > SWIPE_THRESHOLD && absDeltaY > absDeltaX) {
+                if (deltaY < 0) {
+                    // Swipe up - flip
+                    flipPiece();
+                }
+                // Swipe down could be used for other actions in future
+            }
+        }, { passive: true });
 
         // Keyboard events
         document.addEventListener('keydown', (e) => {

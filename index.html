@@ -598,7 +598,8 @@
             selectedOrientation: 0,
             occupiedSquares: new Set(),
             mousePos: { x: 0, y: 0 },
-            highlightedPiece: null // Piece name to highlight on grid
+            highlightedPiece: null, // Piece name to highlight on grid
+            isInteractingWithButton: false  // Flag to prevent deselection during button interaction
         };
 
         const currentDate = getCurrentDate();
@@ -844,14 +845,16 @@
          }
 
         function rotateClockwise() {
-            if (!gameState.selectedPiece) return;
-            const piece = getPiece(gameState.selectedPiece);
-            gameState.selectedOrientation = (gameState.selectedOrientation + 1) % piece.orientations.length;
-            triggerHaptic('medium');
-            draw();
-        }
+             if (!gameState.selectedPiece) return;
+             const piece = getPiece(gameState.selectedPiece);
+             gameState.selectedOrientation = (gameState.selectedOrientation + 1) % piece.orientations.length;
+             gameState.isInteractingWithButton = false;  // Clear flag after interaction
+             triggerHaptic('medium');
+             draw();
+         }
 
         function flipPiece() {
+             gameState.isInteractingWithButton = false;  // Clear flag after interaction
              if (!gameState.selectedPiece) return;
              const piece = getPiece(gameState.selectedPiece);
              const currentCoords = piece.orientations[gameState.selectedOrientation];
@@ -1171,39 +1174,45 @@
          }
 
          canvas.addEventListener('click', (e) => {
-             const rect = canvas.getBoundingClientRect();
-             const canvasX = e.clientX - rect.left;
-             const canvasY = e.clientY - rect.top;
+              const rect = canvas.getBoundingClientRect();
+              const canvasX = e.clientX - rect.left;
+              const canvasY = e.clientY - rect.top;
 
-             // Check if clicking on an already placed piece
-             const clickedPiece = getPlacedPieceAtMouse(canvasX, canvasY);
-             if (clickedPiece && !gameState.selectedPiece) {
-                 // Select the placed piece for repositioning
-                 selectPiece(clickedPiece);
-                 
-                 // Remove it from the board temporarily
-                 gameState.placedPieces.delete(clickedPiece);
-                 
-                 // Rebuild occupiedSquares from remaining pieces
-                 gameState.occupiedSquares.clear();
-                 gameState.placedPieces.forEach((placement, pieceName) => {
-                     const piece = getPiece(pieceName);
-                     const coords = piece.orientations[placement.orientationIndex];
-                     const gridCoords = pieceToGridCoords(coords, placement.row, placement.col);
-                     gridCoords.forEach(([r, c]) => {
-                         gameState.occupiedSquares.add(`${r},${c}`);
-                     });
-                 });
-                 
-                 // Update piece tray UI
-                 updatePieceTrayUI();
-                 
-                 draw();
-                 return;
-             }
+              // On touch devices, don't place if the user was moving their finger
+              if (touchMoved) {
+                  touchMoved = false; // Reset flag
+                  return;
+              }
 
-             // If no piece selected, don't place
-             if (!gameState.selectedPiece) return;
+              // Check if clicking on an already placed piece
+              const clickedPiece = getPlacedPieceAtMouse(canvasX, canvasY);
+              if (clickedPiece && !gameState.selectedPiece) {
+                  // Select the placed piece for repositioning
+                  selectPiece(clickedPiece);
+                  
+                  // Remove it from the board temporarily
+                  gameState.placedPieces.delete(clickedPiece);
+                  
+                  // Rebuild occupiedSquares from remaining pieces
+                  gameState.occupiedSquares.clear();
+                  gameState.placedPieces.forEach((placement, pieceName) => {
+                      const piece = getPiece(pieceName);
+                      const coords = piece.orientations[placement.orientationIndex];
+                      const gridCoords = pieceToGridCoords(coords, placement.row, placement.col);
+                      gridCoords.forEach(([r, c]) => {
+                          gameState.occupiedSquares.add(`${r},${c}`);
+                      });
+                  });
+                  
+                  // Update piece tray UI
+                  updatePieceTrayUI();
+                  
+                  draw();
+                  return;
+              }
+
+              // If no piece selected, don't place
+              if (!gameState.selectedPiece) return;
 
              const { row, col } = getGridPos(canvasX, canvasY);
 
@@ -1272,8 +1281,8 @@
                 relatedTarget.classList?.contains('controls')
             );
             
-            // Only deselect if actually leaving the puzzle area (not moving to controls)
-            if (gameState.selectedPiece && !isMovingToButton) {
+            // Only deselect if actually leaving the puzzle area (not moving to controls and not interacting with buttons)
+            if (gameState.selectedPiece && !isMovingToButton && !gameState.isInteractingWithButton) {
                 deselectPiece();
             }
             draw();
@@ -1285,6 +1294,7 @@
         const SWIPE_THRESHOLD = 50; // Minimum pixels to register swipe
         const SWIPE_TIME_THRESHOLD = 500; // Max milliseconds for swipe
         let touchStartTime = 0;
+        let touchMoved = false; // Track if touch moved significantly during the gesture
 
         canvas.addEventListener('touchstart', (e) => {
             if (!gameState.selectedPiece) return;
@@ -1293,47 +1303,63 @@
             touchStartX = touch.clientX;
             touchStartY = touch.clientY;
             touchStartTime = Date.now();
+            touchMoved = false; // Reset movement flag on touch start
         });
 
-        canvas.addEventListener('touchend', (e) => {
+        canvas.addEventListener('touchmove', (e) => {
             if (!gameState.selectedPiece) return;
             
-            const touch = e.changedTouches[0];
-            const touchEndX = touch.clientX;
-            const touchEndY = touch.clientY;
-            const touchDuration = Date.now() - touchStartTime;
+            const touch = e.touches[0];
+            const deltaX = Math.abs(touch.clientX - touchStartX);
+            const deltaY = Math.abs(touch.clientY - touchStartY);
             
-            // Only register if swipe was quick enough
-            if (touchDuration > SWIPE_TIME_THRESHOLD) return;
-            
-            const deltaX = touchEndX - touchStartX;
-            const deltaY = touchEndY - touchStartY;
-            const absDeltaX = Math.abs(deltaX);
-            const absDeltaY = Math.abs(deltaY);
-            
-            // Detect swipe direction
-            // Horizontal swipes (left/right) for rotation
-            if (absDeltaX > SWIPE_THRESHOLD && absDeltaX > absDeltaY) {
-                if (deltaX > 0) {
-                    // Swipe right - rotate counter-clockwise
-                    const piece = getPiece(gameState.selectedPiece);
-                    gameState.selectedOrientation = (gameState.selectedOrientation - 1 + piece.orientations.length) % piece.orientations.length;
-                    triggerHaptic('medium');
-                    draw();
-                } else {
-                    // Swipe left - rotate clockwise
-                    rotateClockwise();
-                }
-            }
-            // Vertical swipes (up/down) for flip
-            else if (absDeltaY > SWIPE_THRESHOLD && absDeltaY > absDeltaX) {
-                if (deltaY < 0) {
-                    // Swipe up - flip
-                    flipPiece();
-                }
-                // Swipe down could be used for other actions in future
+            // Mark as moved if movement exceeds a small threshold (5px to account for touch jitter)
+            if (deltaX > 5 || deltaY > 5) {
+                touchMoved = true;
             }
         }, { passive: true });
+
+        canvas.addEventListener('touchend', (e) => {
+             if (!gameState.selectedPiece) return;
+             
+             const touch = e.changedTouches[0];
+             const touchEndX = touch.clientX;
+             const touchEndY = touch.clientY;
+             const touchDuration = Date.now() - touchStartTime;
+             
+             // Only register if swipe was quick enough
+             if (touchDuration > SWIPE_TIME_THRESHOLD) return;
+             
+             const deltaX = touchEndX - touchStartX;
+             const deltaY = touchEndY - touchStartY;
+             const absDeltaX = Math.abs(deltaX);
+             const absDeltaY = Math.abs(deltaY);
+             
+             // Detect swipe direction
+             // Horizontal swipes (left/right) for rotation
+             if (absDeltaX > SWIPE_THRESHOLD && absDeltaX > absDeltaY) {
+                 e.preventDefault();
+                 if (deltaX > 0) {
+                     // Swipe right - rotate counter-clockwise
+                     const piece = getPiece(gameState.selectedPiece);
+                     gameState.selectedOrientation = (gameState.selectedOrientation - 1 + piece.orientations.length) % piece.orientations.length;
+                     triggerHaptic('medium');
+                     draw();
+                 } else {
+                     // Swipe left - rotate clockwise
+                     rotateClockwise();
+                 }
+             }
+             // Vertical swipes (up/down) for flip
+             else if (absDeltaY > SWIPE_THRESHOLD && absDeltaY > absDeltaX) {
+                 e.preventDefault();
+                 if (deltaY < 0) {
+                     // Swipe up - flip
+                     flipPiece();
+                 }
+                 // Swipe down could be used for other actions in future
+             }
+         }, { passive: false });
 
         // Keyboard events
         document.addEventListener('keydown', (e) => {
@@ -1447,6 +1473,23 @@
         window.resetPuzzle = resetPuzzle;
         window.deselectPiece = deselectPiece;
         window.triggerHaptic = triggerHaptic;
+        
+        // Attach button interaction handlers to prevent piece deselection during button tap/click
+        document.querySelectorAll('button').forEach(button => {
+            // Set flag on pointer/touch down
+            button.addEventListener('pointerdown', () => {
+                gameState.isInteractingWithButton = true;
+            });
+            button.addEventListener('touchstart', () => {
+                gameState.isInteractingWithButton = true;
+            });
+            // Clear flag with a small delay to ensure button handler runs first
+            button.addEventListener('click', () => {
+                setTimeout(() => {
+                    gameState.isInteractingWithButton = false;
+                }, 50);
+            });
+        });
 
         // Initialize
         // Check if it's a new day and reset if needed

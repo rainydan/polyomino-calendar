@@ -1174,39 +1174,45 @@
          }
 
          canvas.addEventListener('click', (e) => {
-             const rect = canvas.getBoundingClientRect();
-             const canvasX = e.clientX - rect.left;
-             const canvasY = e.clientY - rect.top;
+              const rect = canvas.getBoundingClientRect();
+              const canvasX = e.clientX - rect.left;
+              const canvasY = e.clientY - rect.top;
 
-             // Check if clicking on an already placed piece
-             const clickedPiece = getPlacedPieceAtMouse(canvasX, canvasY);
-             if (clickedPiece && !gameState.selectedPiece) {
-                 // Select the placed piece for repositioning
-                 selectPiece(clickedPiece);
-                 
-                 // Remove it from the board temporarily
-                 gameState.placedPieces.delete(clickedPiece);
-                 
-                 // Rebuild occupiedSquares from remaining pieces
-                 gameState.occupiedSquares.clear();
-                 gameState.placedPieces.forEach((placement, pieceName) => {
-                     const piece = getPiece(pieceName);
-                     const coords = piece.orientations[placement.orientationIndex];
-                     const gridCoords = pieceToGridCoords(coords, placement.row, placement.col);
-                     gridCoords.forEach(([r, c]) => {
-                         gameState.occupiedSquares.add(`${r},${c}`);
-                     });
-                 });
-                 
-                 // Update piece tray UI
-                 updatePieceTrayUI();
-                 
-                 draw();
-                 return;
-             }
+              // On touch devices, don't place if the user was moving their finger
+              if (touchMoved) {
+                  touchMoved = false; // Reset flag
+                  return;
+              }
 
-             // If no piece selected, don't place
-             if (!gameState.selectedPiece) return;
+              // Check if clicking on an already placed piece
+              const clickedPiece = getPlacedPieceAtMouse(canvasX, canvasY);
+              if (clickedPiece && !gameState.selectedPiece) {
+                  // Select the placed piece for repositioning
+                  selectPiece(clickedPiece);
+                  
+                  // Remove it from the board temporarily
+                  gameState.placedPieces.delete(clickedPiece);
+                  
+                  // Rebuild occupiedSquares from remaining pieces
+                  gameState.occupiedSquares.clear();
+                  gameState.placedPieces.forEach((placement, pieceName) => {
+                      const piece = getPiece(pieceName);
+                      const coords = piece.orientations[placement.orientationIndex];
+                      const gridCoords = pieceToGridCoords(coords, placement.row, placement.col);
+                      gridCoords.forEach(([r, c]) => {
+                          gameState.occupiedSquares.add(`${r},${c}`);
+                      });
+                  });
+                  
+                  // Update piece tray UI
+                  updatePieceTrayUI();
+                  
+                  draw();
+                  return;
+              }
+
+              // If no piece selected, don't place
+              if (!gameState.selectedPiece) return;
 
              const { row, col } = getGridPos(canvasX, canvasY);
 
@@ -1288,6 +1294,7 @@
         const SWIPE_THRESHOLD = 50; // Minimum pixels to register swipe
         const SWIPE_TIME_THRESHOLD = 500; // Max milliseconds for swipe
         let touchStartTime = 0;
+        let touchMoved = false; // Track if touch moved significantly during the gesture
 
         canvas.addEventListener('touchstart', (e) => {
             if (!gameState.selectedPiece) return;
@@ -1296,7 +1303,21 @@
             touchStartX = touch.clientX;
             touchStartY = touch.clientY;
             touchStartTime = Date.now();
+            touchMoved = false; // Reset movement flag on touch start
         });
+
+        canvas.addEventListener('touchmove', (e) => {
+            if (!gameState.selectedPiece) return;
+            
+            const touch = e.touches[0];
+            const deltaX = Math.abs(touch.clientX - touchStartX);
+            const deltaY = Math.abs(touch.clientY - touchStartY);
+            
+            // Mark as moved if movement exceeds a small threshold (5px to account for touch jitter)
+            if (deltaX > 5 || deltaY > 5) {
+                touchMoved = true;
+            }
+        }, { passive: true });
 
         canvas.addEventListener('touchend', (e) => {
              if (!gameState.selectedPiece) return;

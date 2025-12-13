@@ -1203,10 +1203,20 @@
              }
         });
 
-        canvas.addEventListener('mouseleave', () => {
+        canvas.addEventListener('mouseleave', (e) => {
             gameState.mousePos = { x: -1000, y: -1000 };
-            // If a piece is selected, return it to the tray
-            if (gameState.selectedPiece) {
+            
+            // Check if mouse is moving to a control button or interactive element
+            const relatedTarget = e.relatedTarget;
+            const isMovingToButton = relatedTarget && (
+                relatedTarget.tagName === 'BUTTON' || 
+                relatedTarget.closest('button') ||
+                relatedTarget.classList?.contains('button-group') ||
+                relatedTarget.classList?.contains('controls')
+            );
+            
+            // Only deselect if actually leaving the puzzle area (not moving to controls)
+            if (gameState.selectedPiece && !isMovingToButton) {
                 deselectPiece();
             }
             draw();

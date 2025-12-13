@@ -259,6 +259,18 @@ Considerations:
 4. **Daily Reward**: Optional streak/statistics display
 5. **Auto-Reset**: Midnight (local time) triggers fresh puzzle
 
+## Mobile Experience
+
+See `docs/mobile-experience.md` for comprehensive mobile design specification.
+
+### Key Mobile Features
+- **Touch Controls**: Full piece selection, placement, rotation, and flip via touch
+- **Responsive Layout**: Optimized UI for screens 320px–1024px wide
+- **Performance**: Smooth 60fps interactions on mid-range mobile hardware
+- **Accessibility**: WCAG 2.1 AA compliance for mobile devices
+- **Gesture Support**: Alternative touch-based controls (swipe, long-press, etc.)
+- **Device Optimization**: Safe areas for notched devices, landscape orientation support
+
 ## Future Enhancements
 
 - **Undo/Redo Stack**: Full history of moves with ability to rewind to any game state
@@ -266,9 +278,9 @@ Considerations:
 - **Multiplayer**: Shared puzzle links or async race mode
 - **Social Features**: Share solve times or completion screenshots
 - **Accessibility**: Keyboard-only controls, screen reader support, high contrast mode
-- **Mobile Optimization**: Touch-friendly controls and responsive design
 - **Sound Effects**: Optional audio feedback for piece placement and completion
 - **Analytics**: Non-identifying usage analytics (if hosted) to track engagement
+- **PWA Support**: Offline capability, installable web app, home screen shortcut
 
 ## Implementation Phases
 

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="description" content="Play Polyomino Calendar Daily - a new puzzle every day. Place polyomino pieces on a calendar grid to cover every day and month except today.">
     <meta property="og:title" content="Polyomino Calendar Daily">
     <meta property="og:description" content="An interactive polyomino puzzle game where you place pieces to cover a calendar grid. Challenge yourself daily!">
@@ -23,6 +23,10 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
+            padding-left: max(20px, env(safe-area-inset-left));
+            padding-right: max(20px, env(safe-area-inset-right));
+            padding-top: max(20px, env(safe-area-inset-top));
+            padding-bottom: max(20px, env(safe-area-inset-bottom));
             display: flex;
             justify-content: center;
             align-items: center;
@@ -40,6 +44,8 @@
         .header {
             text-align: center;
             margin-bottom: 30px;
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
         }
 
         .header h1 {
@@ -57,6 +63,8 @@
             gap: 30px;
             flex-wrap: wrap;
             justify-content: center;
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
         }
 
         .game-board {
@@ -73,6 +81,7 @@
             background: #f5f5f5;
             cursor: crosshair;
             display: block;
+            touch-action: manipulation;
         }
 
         .info-panel {
@@ -115,6 +124,19 @@
             margin-bottom: 20px;
         }
 
+        /* Responsive piece tray layout */
+        @media (max-width: 480px) {
+            .piece-tray {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 360px) {
+            .piece-tray {
+                grid-template-columns: 1fr;
+            }
+        }
+
         .piece-item {
             padding: 12px;
             background: white;
@@ -127,16 +149,59 @@
             font-weight: 500;
         }
 
+        @media (max-width: 480px) {
+            .piece-item {
+                padding: 8px;
+                font-size: 11px;
+            }
+        }
+
         .piece-item:hover {
             border-color: #667eea;
             background: #f0f2ff;
             transform: translateY(-2px);
+        }
+        
+        /* Disable hover effects on touch devices */
+        @media (hover: none) and (pointer: coarse) {
+            .piece-item:hover {
+                border-color: #ddd;
+                background: white;
+                transform: none;
+            }
+            
+            .piece-item.placed:hover {
+                opacity: 0.7;
+                border-color: #4caf50;
+                background: #e8f5e9;
+                transform: none;
+            }
+            
+            button:hover {
+                background: #667eea;
+                transform: none;
+            }
+            
+            button.secondary:hover {
+                background: #e0e0e0;
+            }
         }
 
         .piece-item.selected {
             border-color: #667eea;
             background: #e8ebff;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .piece-item:active {
+            border-color: #667eea;
+            background: #e8ebff;
+            transform: translateY(0);
+        }
+        
+        .piece-item:focus-visible {
+            outline: 2px solid #667eea;
+            outline-offset: 2px;
         }
 
         .piece-item.placed {
@@ -152,6 +217,18 @@
             border-color: #2e7d32;
             background: #c8e6c9;
             transform: translateY(-2px);
+        }
+        
+        .piece-item.placed:active {
+            opacity: 1;
+            border-color: #2e7d32;
+            background: #c8e6c9;
+            transform: translateY(0);
+        }
+        
+        .piece-item.placed:focus-visible {
+            outline: 2px solid #2e7d32;
+            outline-offset: 2px;
         }
 
         .piece-item.highlight {
@@ -239,7 +316,13 @@
         }
 
         button:active {
+            background: #4557c0;
             transform: translateY(0);
+        }
+        
+        button:focus-visible {
+            outline: 2px solid #667eea;
+            outline-offset: 2px;
         }
 
         button.secondary {
@@ -249,6 +332,15 @@
 
         button.secondary:hover {
             background: #d0d0d0;
+        }
+        
+        button.secondary:active {
+            background: #c0c0c0;
+        }
+        
+        button.secondary:focus-visible {
+            outline: 2px solid #999;
+            outline-offset: 2px;
         }
 
         .status-message {
@@ -317,6 +409,8 @@
         .ai-disclosure {
             margin-top: 30px;
             padding: 15px;
+            padding-left: max(15px, env(safe-area-inset-left));
+            padding-right: max(15px, env(safe-area-inset-right));
             background: #f0f2ff;
             border-left: 4px solid #667eea;
             border-radius: 6px;
@@ -344,6 +438,12 @@
                 flex: 0 0 auto;
                 width: 100%;
             }
+
+            /* Additional safe area padding for mobile with notches */
+            .container {
+                margin-left: env(safe-area-inset-left);
+                margin-right: env(safe-area-inset-right);
+            }
         }
     </style>
 </head>
@@ -357,8 +457,13 @@
 
         <div class="game-wrapper">
             <div class="game-board">
-                <canvas id="gameCanvas" class="canvas"></canvas>
+                <canvas id="gameCanvas" class="canvas" aria-label="Polyomino Calendar puzzle game board. Click to place pieces on the calendar grid. Select pieces from the sidebar and place them to cover all calendar days and months except today."></canvas>
                 <div id="statusMessage" class="status-message"></div>
+                <noscript>
+                    <div style="margin-top: 15px; padding: 15px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px;">
+                        <p><strong>JavaScript is required to play this game.</strong> Polyomino Calendar is an interactive puzzle game where you place polyomino pieces on a calendar grid to cover all days and months except today. Please enable JavaScript in your browser to play.</p>
+                    </div>
+                </noscript>
             </div>
 
             <div class="info-panel">
@@ -381,7 +486,8 @@
                         </div>
                         <div class="control-hints">
                             <strong>Keyboard:</strong> R = Rotate | F = Flip | Escape = Remove<br/>
-                            <strong>Mouse:</strong> Scroll wheel = Rotate | Right-click = Flip
+                            <strong>Mouse:</strong> Scroll wheel = Rotate | Right-click = Flip<br/>
+                            <strong>Touch:</strong> Swipe left = Rotate | Swipe up = Flip
                         </div>
                     </div>
 
@@ -412,15 +518,77 @@
         import { initializeGrid, getCurrentDate, GRID_ROWS, GRID_COLS, isValidPlacement, pieceToGridCoords } from './grid.js';
         import { pieces, getPiece, getPieceOrientation, nextOrientation, prevOrientation } from './pieces.js';
 
+        // Detect touch capability
+        const isTouchDevice = () => {
+            return (('ontouchstart' in window) ||
+                    (navigator.maxTouchPoints > 0) ||
+                    (navigator.msMaxTouchPoints > 0));
+        };
+        
+        const hasTouch = isTouchDevice();
+        
+        // Prevent zoom gestures on touch devices
+        if (hasTouch) {
+            // Prevent double-tap zoom
+            let lastTouchTime = 0;
+            document.addEventListener('touchstart', (e) => {
+                const currentTime = new Date().getTime();
+                const tapLength = currentTime - lastTouchTime;
+                
+                // If two taps within 300ms, prevent zoom
+                if (tapLength < 300 && tapLength > 0) {
+                    e.preventDefault();
+                }
+                lastTouchTime = currentTime;
+            }, { passive: false });
+            
+            // Prevent pinch zoom
+            document.addEventListener('touchmove', (e) => {
+                if (e.touches.length > 1) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+        }
+
         // Canvas setup
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         
-        const SQUARE_SIZE = 50;
+        // Responsive SQUARE_SIZE based on viewport width
+        function getResponsiveSquareSize() {
+            const vw = Math.min(window.innerWidth, 1024); // Cap at 1024px
+            
+            if (vw < 320) {
+                return 30; // Very small phones
+            } else if (vw < 360) {
+                return 35; // Small phones (iPhone SE)
+            } else if (vw < 480) {
+                return 40; // Mobile phones
+            } else if (vw < 768) {
+                return 45; // Larger phones, small tablets
+            } else {
+                return 50; // Tablets and desktop (default)
+            }
+        }
+        
+        let SQUARE_SIZE = getResponsiveSquareSize();
         const PADDING = 20;
-
-        canvas.width = GRID_COLS * SQUARE_SIZE + PADDING * 2;
-        canvas.height = GRID_ROWS * SQUARE_SIZE + PADDING * 2;
+        
+        // DPI scaling for high-DPI displays (retina, etc.)
+        const dpr = window.devicePixelRatio || 1;
+        const logicalWidth = GRID_COLS * SQUARE_SIZE + PADDING * 2;
+        const logicalHeight = GRID_ROWS * SQUARE_SIZE + PADDING * 2;
+        
+        // Set canvas drawing surface to match device pixel ratio
+        canvas.width = logicalWidth * dpr;
+        canvas.height = logicalHeight * dpr;
+        
+        // Scale canvas element to match logical size
+        canvas.style.width = logicalWidth + 'px';
+        canvas.style.height = logicalHeight + 'px';
+        
+        // Scale drawing context by DPR
+        ctx.scale(dpr, dpr);
 
         // Game state
         const gameState = {
@@ -672,12 +840,14 @@
                  return;
              }
              selectPiece(pieceName);
+             triggerHaptic('short');
          }
 
         function rotateClockwise() {
             if (!gameState.selectedPiece) return;
             const piece = getPiece(gameState.selectedPiece);
             gameState.selectedOrientation = (gameState.selectedOrientation + 1) % piece.orientations.length;
+            triggerHaptic('medium');
             draw();
         }
 
@@ -701,6 +871,7 @@
                  const oriented = piece.orientations[i].slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
                  if (JSON.stringify(oriented) === JSON.stringify(normalizedFlipped)) {
                      gameState.selectedOrientation = i;
+                     triggerHaptic('medium');
                      draw();
                      return;
                  }
@@ -907,13 +1078,23 @@
         }
 
         // Canvas events
+        // Throttle canvas redraws on mousemove for better performance
+        let lastDrawTime = 0;
+        const DRAW_THROTTLE_MS = 16; // ~60fps
+        
         canvas.addEventListener('mousemove', (e) => {
             const rect = canvas.getBoundingClientRect();
             gameState.mousePos = {
                 x: e.clientX - rect.left,
                 y: e.clientY - rect.top
             };
-            draw();
+            
+            // Throttle redraws to 60fps
+            const now = Date.now();
+            if (now - lastDrawTime >= DRAW_THROTTLE_MS) {
+                draw();
+                lastDrawTime = now;
+            }
         });
 
         function getPlacedPieceAtMouse(canvasX, canvasY) {
@@ -997,24 +1178,29 @@
                 gameState.selectedPiece = null;
                 document.getElementById('selectedPiece').textContent = 'None';
                 
+                // Haptic feedback for successful placement
+                triggerHaptic('success');
+                
                 // Update piece tray UI
                 updatePieceTrayUI();
 
                 // Check win condition
                 if (checkWinCondition()) {
+                    triggerHaptic('complete');
                     showWinMessage();
                 }
 
                 // Save game state after each move
                 saveGameState();
                 draw();
-            } else {
-                // Invalid placement - show shake animation
+             } else {
+                // Invalid placement - show shake animation and error haptic
+                triggerHaptic('error');
                 canvas.classList.add('shake');
                 setTimeout(() => {
                     canvas.classList.remove('shake');
                 }, 400);
-            }
+             }
         });
 
         canvas.addEventListener('mouseleave', () => {
@@ -1025,6 +1211,62 @@
             }
             draw();
         });
+
+        // Touch swipe gestures for rotation and flip
+        let touchStartX = 0;
+        let touchStartY = 0;
+        const SWIPE_THRESHOLD = 50; // Minimum pixels to register swipe
+        const SWIPE_TIME_THRESHOLD = 500; // Max milliseconds for swipe
+        let touchStartTime = 0;
+
+        canvas.addEventListener('touchstart', (e) => {
+            if (!gameState.selectedPiece) return;
+            
+            const touch = e.touches[0];
+            touchStartX = touch.clientX;
+            touchStartY = touch.clientY;
+            touchStartTime = Date.now();
+        });
+
+        canvas.addEventListener('touchend', (e) => {
+            if (!gameState.selectedPiece) return;
+            
+            const touch = e.changedTouches[0];
+            const touchEndX = touch.clientX;
+            const touchEndY = touch.clientY;
+            const touchDuration = Date.now() - touchStartTime;
+            
+            // Only register if swipe was quick enough
+            if (touchDuration > SWIPE_TIME_THRESHOLD) return;
+            
+            const deltaX = touchEndX - touchStartX;
+            const deltaY = touchEndY - touchStartY;
+            const absDeltaX = Math.abs(deltaX);
+            const absDeltaY = Math.abs(deltaY);
+            
+            // Detect swipe direction
+            // Horizontal swipes (left/right) for rotation
+            if (absDeltaX > SWIPE_THRESHOLD && absDeltaX > absDeltaY) {
+                if (deltaX > 0) {
+                    // Swipe right - rotate counter-clockwise
+                    const piece = getPiece(gameState.selectedPiece);
+                    gameState.selectedOrientation = (gameState.selectedOrientation - 1 + piece.orientations.length) % piece.orientations.length;
+                    triggerHaptic('medium');
+                    draw();
+                } else {
+                    // Swipe left - rotate clockwise
+                    rotateClockwise();
+                }
+            }
+            // Vertical swipes (up/down) for flip
+            else if (absDeltaY > SWIPE_THRESHOLD && absDeltaY > absDeltaX) {
+                if (deltaY < 0) {
+                    // Swipe up - flip
+                    flipPiece();
+                }
+                // Swipe down could be used for other actions in future
+            }
+        }, { passive: true });
 
         // Keyboard events
         document.addEventListener('keydown', (e) => {
@@ -1089,11 +1331,55 @@
             flipPiece();
         });
 
+        // Haptic feedback helper
+        function triggerHaptic(pattern = 'short') {
+            if (!navigator.vibrate) return; // Fallback for browsers without vibration API
+            
+            const patterns = {
+                short: 10,           // Brief feedback for selection
+                medium: 20,          // Medium feedback for actions
+                success: [20, 10, 20], // Double tap for success
+                error: [50, 30, 50],  // Stronger pattern for errors
+                complete: [30, 50, 30, 50, 30] // Win celebration
+            };
+            
+            navigator.vibrate(patterns[pattern] || pattern);
+        }
+
+        // Handle window resize for responsive canvas sizing
+        function resizeCanvas() {
+            const newSquareSize = getResponsiveSquareSize();
+            
+            // Only resize if square size changed
+            if (newSquareSize !== SQUARE_SIZE) {
+                SQUARE_SIZE = newSquareSize;
+                
+                const newLogicalWidth = GRID_COLS * SQUARE_SIZE + PADDING * 2;
+                const newLogicalHeight = GRID_ROWS * SQUARE_SIZE + PADDING * 2;
+                
+                // Update canvas dimensions
+                canvas.width = newLogicalWidth * dpr;
+                canvas.height = newLogicalHeight * dpr;
+                canvas.style.width = newLogicalWidth + 'px';
+                canvas.style.height = newLogicalHeight + 'px';
+                
+                // Re-scale context
+                ctx.scale(dpr, dpr);
+                
+                // Redraw with new dimensions
+                draw();
+            }
+        }
+        
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('orientationchange', resizeCanvas);
+
         // Make functions global
         window.rotateClockwise = rotateClockwise;
         window.flipPiece = flipPiece;
         window.resetPuzzle = resetPuzzle;
         window.deselectPiece = deselectPiece;
+        window.triggerHaptic = triggerHaptic;
 
         // Initialize
         // Check if it's a new day and reset if needed

@@ -392,8 +392,13 @@
 
         <div class="game-wrapper">
             <div class="game-board">
-                <canvas id="gameCanvas" class="canvas"></canvas>
+                <canvas id="gameCanvas" class="canvas" aria-label="Polyomino Calendar puzzle game board. Click to place pieces on the calendar grid. Select pieces from the sidebar and place them to cover all calendar days and months except today."></canvas>
                 <div id="statusMessage" class="status-message"></div>
+                <noscript>
+                    <div style="margin-top: 15px; padding: 15px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px;">
+                        <p><strong>JavaScript is required to play this game.</strong> Polyomino Calendar is an interactive puzzle game where you place polyomino pieces on a calendar grid to cover all days and months except today. Please enable JavaScript in your browser to play.</p>
+                    </div>
+                </noscript>
             </div>
 
             <div class="info-panel">

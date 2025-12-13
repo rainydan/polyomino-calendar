@@ -691,12 +691,14 @@
                  return;
              }
              selectPiece(pieceName);
+             triggerHaptic('short');
          }
 
         function rotateClockwise() {
             if (!gameState.selectedPiece) return;
             const piece = getPiece(gameState.selectedPiece);
             gameState.selectedOrientation = (gameState.selectedOrientation + 1) % piece.orientations.length;
+            triggerHaptic('medium');
             draw();
         }
 
@@ -720,6 +722,7 @@
                  const oriented = piece.orientations[i].slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
                  if (JSON.stringify(oriented) === JSON.stringify(normalizedFlipped)) {
                      gameState.selectedOrientation = i;
+                     triggerHaptic('medium');
                      draw();
                      return;
                  }
@@ -1016,24 +1019,29 @@
                 gameState.selectedPiece = null;
                 document.getElementById('selectedPiece').textContent = 'None';
                 
+                // Haptic feedback for successful placement
+                triggerHaptic('success');
+                
                 // Update piece tray UI
                 updatePieceTrayUI();
 
                 // Check win condition
                 if (checkWinCondition()) {
+                    triggerHaptic('complete');
                     showWinMessage();
                 }
 
                 // Save game state after each move
                 saveGameState();
                 draw();
-            } else {
-                // Invalid placement - show shake animation
+             } else {
+                // Invalid placement - show shake animation and error haptic
+                triggerHaptic('error');
                 canvas.classList.add('shake');
                 setTimeout(() => {
                     canvas.classList.remove('shake');
                 }, 400);
-            }
+             }
         });
 
         canvas.addEventListener('mouseleave', () => {
@@ -1108,11 +1116,27 @@
             flipPiece();
         });
 
+        // Haptic feedback helper
+        function triggerHaptic(pattern = 'short') {
+            if (!navigator.vibrate) return; // Fallback for browsers without vibration API
+            
+            const patterns = {
+                short: 10,           // Brief feedback for selection
+                medium: 20,          // Medium feedback for actions
+                success: [20, 10, 20], // Double tap for success
+                error: [50, 30, 50],  // Stronger pattern for errors
+                complete: [30, 50, 30, 50, 30] // Win celebration
+            };
+            
+            navigator.vibrate(patterns[pattern] || pattern);
+        }
+
         // Make functions global
         window.rotateClockwise = rotateClockwise;
         window.flipPiece = flipPiece;
         window.resetPuzzle = resetPuzzle;
         window.deselectPiece = deselectPiece;
+        window.triggerHaptic = triggerHaptic;
 
         // Initialize
         // Check if it's a new day and reset if needed

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="description" content="Play Polyomino Calendar Daily - a new puzzle every day. Place polyomino pieces on a calendar grid to cover every day and month except today.">
     <meta property="og:title" content="Polyomino Calendar Daily">
     <meta property="og:description" content="An interactive polyomino puzzle game where you place pieces to cover a calendar grid. Challenge yourself daily!">
@@ -22,6 +22,10 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
+            padding-left: max(20px, env(safe-area-inset-left));
+            padding-right: max(20px, env(safe-area-inset-right));
+            padding-top: max(20px, env(safe-area-inset-top));
+            padding-bottom: max(20px, env(safe-area-inset-bottom));
             display: flex;
             justify-content: center;
             align-items: center;
@@ -39,6 +43,8 @@
         .header {
             text-align: center;
             margin-bottom: 30px;
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
         }
 
         .header h1 {
@@ -56,6 +62,8 @@
             gap: 30px;
             flex-wrap: wrap;
             justify-content: center;
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
         }
 
         .game-board {
@@ -336,6 +344,8 @@
         .ai-disclosure {
             margin-top: 30px;
             padding: 15px;
+            padding-left: max(15px, env(safe-area-inset-left));
+            padding-right: max(15px, env(safe-area-inset-right));
             background: #f0f2ff;
             border-left: 4px solid #667eea;
             border-radius: 6px;
@@ -362,6 +372,12 @@
             .info-panel {
                 flex: 0 0 auto;
                 width: 100%;
+            }
+
+            /* Additional safe area padding for mobile with notches */
+            .container {
+                margin-left: env(safe-area-inset-left);
+                margin-right: env(safe-area-inset-right);
             }
         }
     </style>

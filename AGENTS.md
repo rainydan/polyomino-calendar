@@ -1,8 +1,3 @@
-## design
-design docs should be markdown files in the docs/ directory
-
-When a design decision is made, memorialize it in docs/design.md.
-
 ## Issue Tracking with bd (beads)
 
 **IMPORTANT**: This project uses **bd (beads)** for ALL issue tracking. Do NOT use markdown TODOs, task lists, or other tracking methods.
@@ -86,12 +81,6 @@ AI assistants often create planning and design documents during development:
 - Store ALL AI-generated planning/design docs in `history/`
 - Keep the repository root clean and focused on permanent project files
 - Only access `history/` when explicitly asked to review past planning
-
-**Example .gitignore entry (optional):**
-```
-# AI planning documents (ephemeral)
-history/
-```
 
 **Benefits:**
 - ✅ Clean repository root

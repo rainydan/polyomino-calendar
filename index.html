@@ -114,6 +114,19 @@
             margin-bottom: 20px;
         }
 
+        /* Responsive piece tray layout */
+        @media (max-width: 480px) {
+            .piece-tray {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 360px) {
+            .piece-tray {
+                grid-template-columns: 1fr;
+            }
+        }
+
         .piece-item {
             padding: 12px;
             background: white;
@@ -124,6 +137,13 @@
             transition: all 0.2s;
             font-size: 12px;
             font-weight: 500;
+        }
+
+        @media (max-width: 480px) {
+            .piece-item {
+                padding: 8px;
+                font-size: 11px;
+            }
         }
 
         .piece-item:hover {

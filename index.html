@@ -989,9 +989,15 @@
             }
         }
 
-        function drawPiece(pieceCoords, startRow, startCol, color, opacity = 1, isHighlighted = false) {
+        function drawPiece(pieceCoords, startRow, startCol, color, opacity = 1, isHighlighted = false, isActive = false) {
             ctx.globalAlpha = opacity;
-            ctx.fillStyle = color;
+            
+            // Use distinct color for active pieces
+            if (isActive) {
+                ctx.fillStyle = '#FF6B9D';  // Bright pink/magenta for active pieces
+            } else {
+                ctx.fillStyle = color;
+            }
             
             pieceCoords.forEach(([x, y]) => {
                 const gridRow = startRow + y;
@@ -1001,8 +1007,11 @@
                 
                 ctx.fillRect(canvasX, canvasY, SQUARE_SIZE, SQUARE_SIZE);
                 
-                // Draw highlight border if highlighted
-                if (isHighlighted) {
+                // Draw highlight border - make active pieces more visible
+                if (isActive) {
+                    ctx.strokeStyle = '#C41E3A';  // Dark red for active piece border
+                    ctx.lineWidth = 3;
+                } else if (isHighlighted) {
                     ctx.strokeStyle = '#ff6b6b';
                     ctx.lineWidth = 4;
                 } else {
@@ -1010,6 +1019,18 @@
                     ctx.lineWidth = 2;
                 }
                 ctx.strokeRect(canvasX, canvasY, SQUARE_SIZE, SQUARE_SIZE);
+                
+                // Add diagonal pattern/texture for active pieces to make them even more distinct
+                if (isActive) {
+                    ctx.strokeStyle = 'rgba(196, 30, 58, 0.3)';
+                    ctx.lineWidth = 1;
+                    for (let i = 0; i < SQUARE_SIZE; i += 4) {
+                        ctx.beginPath();
+                        ctx.moveTo(canvasX + i, canvasY);
+                        ctx.lineTo(canvasX + i + SQUARE_SIZE, canvasY + SQUARE_SIZE);
+                        ctx.stroke();
+                    }
+                }
             });
             
             ctx.globalAlpha = 1;
@@ -1041,6 +1062,37 @@
              return closest;
          }
 
+        function drawPlacementIndicator() {
+             // Draw a crosshair or indicator at the exact cursor position to show where piece will land
+             if (!gameState.selectedPiece || gameState.mousePos.x < 0) return;
+             
+             const { row, col } = getGridPos(gameState.mousePos.x, gameState.mousePos.y);
+             const canvasX = PADDING + col * SQUARE_SIZE;
+             const canvasY = PADDING + row * SQUARE_SIZE;
+             
+             // Draw a bright target circle at the tap point
+             ctx.fillStyle = 'rgba(255, 107, 157, 0.3)';  // Semi-transparent magenta
+             ctx.beginPath();
+             ctx.arc(canvasX + SQUARE_SIZE / 2, canvasY + SQUARE_SIZE / 2, SQUARE_SIZE / 3, 0, Math.PI * 2);
+             ctx.fill();
+             
+             // Draw crosshairs
+             ctx.strokeStyle = '#FF6B9D';
+             ctx.lineWidth = 2;
+             
+             // Vertical line
+             ctx.beginPath();
+             ctx.moveTo(canvasX + SQUARE_SIZE / 2, canvasY + 5);
+             ctx.lineTo(canvasX + SQUARE_SIZE / 2, canvasY + SQUARE_SIZE - 5);
+             ctx.stroke();
+             
+             // Horizontal line
+             ctx.beginPath();
+             ctx.moveTo(canvasX + 5, canvasY + SQUARE_SIZE / 2);
+             ctx.lineTo(canvasX + SQUARE_SIZE - 5, canvasY + SQUARE_SIZE / 2);
+             ctx.stroke();
+        }
+
         function drawPreview() {
              if (!gameState.selectedPiece) return;
 
@@ -1056,7 +1108,12 @@
              const gridCoords = pieceToGridCoords(coords, adjustedRow, adjustedCol);
              const isValid = isValidPlacement(gridCoords, gameState.occupiedSquares);
 
-             drawPiece(coords, adjustedRow, adjustedCol, piece.color, isValid ? 0.4 : 0.2);
+             // Draw active piece with full opacity and distinct appearance
+             // Only reduce opacity if placement is invalid
+             drawPiece(coords, adjustedRow, adjustedCol, piece.color, isValid ? 1.0 : 0.5, false, true);
+             
+             // Draw placement indicator to show user where piece will land
+             drawPlacementIndicator();
          }
 
         function draw() {
@@ -1203,10 +1260,20 @@
              }
         });
 
-        canvas.addEventListener('mouseleave', () => {
+        canvas.addEventListener('mouseleave', (e) => {
             gameState.mousePos = { x: -1000, y: -1000 };
-            // If a piece is selected, return it to the tray
-            if (gameState.selectedPiece) {
+            
+            // Check if mouse is moving to a control button or interactive element
+            const relatedTarget = e.relatedTarget;
+            const isMovingToButton = relatedTarget && (
+                relatedTarget.tagName === 'BUTTON' || 
+                relatedTarget.closest('button') ||
+                relatedTarget.classList?.contains('button-group') ||
+                relatedTarget.classList?.contains('controls')
+            );
+            
+            // Only deselect if actually leaving the puzzle area (not moving to controls)
+            if (gameState.selectedPiece && !isMovingToButton) {
                 deselectPiece();
             }
             draw();

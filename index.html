@@ -1062,6 +1062,37 @@
              return closest;
          }
 
+        function drawPlacementIndicator() {
+             // Draw a crosshair or indicator at the exact cursor position to show where piece will land
+             if (!gameState.selectedPiece || gameState.mousePos.x < 0) return;
+             
+             const { row, col } = getGridPos(gameState.mousePos.x, gameState.mousePos.y);
+             const canvasX = PADDING + col * SQUARE_SIZE;
+             const canvasY = PADDING + row * SQUARE_SIZE;
+             
+             // Draw a bright target circle at the tap point
+             ctx.fillStyle = 'rgba(255, 107, 157, 0.3)';  // Semi-transparent magenta
+             ctx.beginPath();
+             ctx.arc(canvasX + SQUARE_SIZE / 2, canvasY + SQUARE_SIZE / 2, SQUARE_SIZE / 3, 0, Math.PI * 2);
+             ctx.fill();
+             
+             // Draw crosshairs
+             ctx.strokeStyle = '#FF6B9D';
+             ctx.lineWidth = 2;
+             
+             // Vertical line
+             ctx.beginPath();
+             ctx.moveTo(canvasX + SQUARE_SIZE / 2, canvasY + 5);
+             ctx.lineTo(canvasX + SQUARE_SIZE / 2, canvasY + SQUARE_SIZE - 5);
+             ctx.stroke();
+             
+             // Horizontal line
+             ctx.beginPath();
+             ctx.moveTo(canvasX + 5, canvasY + SQUARE_SIZE / 2);
+             ctx.lineTo(canvasX + SQUARE_SIZE - 5, canvasY + SQUARE_SIZE / 2);
+             ctx.stroke();
+        }
+
         function drawPreview() {
              if (!gameState.selectedPiece) return;
 
@@ -1080,6 +1111,9 @@
              // Draw active piece with full opacity and distinct appearance
              // Only reduce opacity if placement is invalid
              drawPiece(coords, adjustedRow, adjustedCol, piece.color, isValid ? 1.0 : 0.5, false, true);
+             
+             // Draw placement indicator to show user where piece will land
+             drawPlacementIndicator();
          }
 
         function draw() {

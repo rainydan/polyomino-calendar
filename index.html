@@ -175,12 +175,32 @@
                 background: #e8f5e9;
                 transform: none;
             }
+            
+            button:hover {
+                background: #667eea;
+                transform: none;
+            }
+            
+            button.secondary:hover {
+                background: #e0e0e0;
+            }
         }
 
         .piece-item.selected {
             border-color: #667eea;
             background: #e8ebff;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .piece-item:active {
+            border-color: #667eea;
+            background: #e8ebff;
+            transform: translateY(0);
+        }
+        
+        .piece-item:focus-visible {
+            outline: 2px solid #667eea;
+            outline-offset: 2px;
         }
 
         .piece-item.placed {
@@ -196,6 +216,18 @@
             border-color: #2e7d32;
             background: #c8e6c9;
             transform: translateY(-2px);
+        }
+        
+        .piece-item.placed:active {
+            opacity: 1;
+            border-color: #2e7d32;
+            background: #c8e6c9;
+            transform: translateY(0);
+        }
+        
+        .piece-item.placed:focus-visible {
+            outline: 2px solid #2e7d32;
+            outline-offset: 2px;
         }
 
         .piece-item.highlight {
@@ -283,7 +315,13 @@
         }
 
         button:active {
+            background: #4557c0;
             transform: translateY(0);
+        }
+        
+        button:focus-visible {
+            outline: 2px solid #667eea;
+            outline-offset: 2px;
         }
 
         button.secondary {
@@ -293,6 +331,15 @@
 
         button.secondary:hover {
             background: #d0d0d0;
+        }
+        
+        button.secondary:active {
+            background: #c0c0c0;
+        }
+        
+        button.secondary:focus-visible {
+            outline: 2px solid #999;
+            outline-offset: 2px;
         }
 
         .status-message {
@@ -1030,13 +1077,23 @@
         }
 
         // Canvas events
+        // Throttle canvas redraws on mousemove for better performance
+        let lastDrawTime = 0;
+        const DRAW_THROTTLE_MS = 16; // ~60fps
+        
         canvas.addEventListener('mousemove', (e) => {
             const rect = canvas.getBoundingClientRect();
             gameState.mousePos = {
                 x: e.clientX - rect.left,
                 y: e.clientY - rect.top
             };
-            draw();
+            
+            // Throttle redraws to 60fps
+            const now = Date.now();
+            if (now - lastDrawTime >= DRAW_THROTTLE_MS) {
+                draw();
+                lastDrawTime = now;
+            }
         });
 
         function getPlacedPieceAtMouse(canvasX, canvasY) {

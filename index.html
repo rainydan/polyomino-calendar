@@ -598,7 +598,8 @@
             selectedOrientation: 0,
             occupiedSquares: new Set(),
             mousePos: { x: 0, y: 0 },
-            highlightedPiece: null // Piece name to highlight on grid
+            highlightedPiece: null, // Piece name to highlight on grid
+            isInteractingWithButton: false  // Flag to prevent deselection during button interaction
         };
 
         const currentDate = getCurrentDate();
@@ -844,14 +845,16 @@
          }
 
         function rotateClockwise() {
-            if (!gameState.selectedPiece) return;
-            const piece = getPiece(gameState.selectedPiece);
-            gameState.selectedOrientation = (gameState.selectedOrientation + 1) % piece.orientations.length;
-            triggerHaptic('medium');
-            draw();
-        }
+             if (!gameState.selectedPiece) return;
+             const piece = getPiece(gameState.selectedPiece);
+             gameState.selectedOrientation = (gameState.selectedOrientation + 1) % piece.orientations.length;
+             gameState.isInteractingWithButton = false;  // Clear flag after interaction
+             triggerHaptic('medium');
+             draw();
+         }
 
         function flipPiece() {
+             gameState.isInteractingWithButton = false;  // Clear flag after interaction
              if (!gameState.selectedPiece) return;
              const piece = getPiece(gameState.selectedPiece);
              const currentCoords = piece.orientations[gameState.selectedOrientation];
@@ -1272,8 +1275,8 @@
                 relatedTarget.classList?.contains('controls')
             );
             
-            // Only deselect if actually leaving the puzzle area (not moving to controls)
-            if (gameState.selectedPiece && !isMovingToButton) {
+            // Only deselect if actually leaving the puzzle area (not moving to controls and not interacting with buttons)
+            if (gameState.selectedPiece && !isMovingToButton && !gameState.isInteractingWithButton) {
                 deselectPiece();
             }
             draw();
@@ -1447,6 +1450,23 @@
         window.resetPuzzle = resetPuzzle;
         window.deselectPiece = deselectPiece;
         window.triggerHaptic = triggerHaptic;
+        
+        // Attach button interaction handlers to prevent piece deselection during button tap/click
+        document.querySelectorAll('button').forEach(button => {
+            // Set flag on pointer/touch down
+            button.addEventListener('pointerdown', () => {
+                gameState.isInteractingWithButton = true;
+            });
+            button.addEventListener('touchstart', () => {
+                gameState.isInteractingWithButton = true;
+            });
+            // Clear flag with a small delay to ensure button handler runs first
+            button.addEventListener('click', () => {
+                setTimeout(() => {
+                    gameState.isInteractingWithButton = false;
+                }, 50);
+            });
+        });
 
         // Initialize
         // Check if it's a new day and reset if needed

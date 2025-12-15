@@ -517,6 +517,7 @@
     <script type="module">
         import { initializeGrid, getCurrentDate, GRID_ROWS, GRID_COLS, isValidPlacement, pieceToGridCoords } from './grid.js';
         import { pieces, getPiece, getPieceOrientation, nextOrientation, prevOrientation } from './pieces.js';
+        import { createGameModel, rebuildOccupiedSquares, placePiece, removePiece, checkWinCondition, resetGameModel } from './gameLogic.js';
 
         // Detect touch capability
         const isTouchDevice = () => {
@@ -591,11 +592,7 @@
         ctx.scale(dpr, dpr);
 
         // Game model - domain logic state (testable without UI)
-        const gameModel = {
-            grid: initializeGrid(),
-            placedPieces: new Map(), // Map<pieceName, { row, col, orientationIndex }>
-            occupiedSquares: new Set()
-        };
+        const gameModel = createGameModel(initializeGrid());
 
         // UI state - rendering and interaction concerns
         const uiState = {
@@ -625,23 +622,6 @@
 
         const currentDate = getCurrentDate();
 
-        /**
-         * Rebuild the occupiedSquares Set from all currently placed pieces.
-         * This helper eliminates duplicate logic across multiple locations.
-         * Uses gameModel directly as this is pure domain logic.
-         */
-        function rebuildOccupiedSquares() {
-            gameModel.occupiedSquares.clear();
-            gameModel.placedPieces.forEach((placement, pieceName) => {
-                const piece = getPiece(pieceName);
-                const coords = piece.orientations[placement.orientationIndex];
-                const gridCoords = pieceToGridCoords(coords, placement.row, placement.col);
-                gridCoords.forEach(([r, c]) => {
-                    gameModel.occupiedSquares.add(`${r},${c}`);
-                });
-            });
-        }
-        
         // Storage keys
         const STORAGE_GAME_STATE = 'polyomino-game-state';
         const STORAGE_STATS = 'polyomino-stats';
@@ -661,8 +641,7 @@
             localStorage.removeItem(STORAGE_GAME_STATE);
 
             // Reset game model (domain state)
-            gameModel.placedPieces.clear();
-            gameModel.occupiedSquares.clear();
+            resetGameModel(gameModel);
 
             // Reset UI state
             uiState.selectedPiece = null;
@@ -921,27 +900,6 @@
              }
          }
 
-        function checkWinCondition() {
-            // Get all calendar squares that need to be covered
-            const allSquares = [];
-            for (let row = 0; row < gameModel.grid.length; row++) {
-                for (let col = 0; col < gameModel.grid[row].length; col++) {
-                    const square = gameModel.grid[row][col];
-                    if (square.type !== 'empty') {
-                        // Skip the current date square
-                        const isCurrent = (square.type === 'month' && square.monthIndex === currentDate.monthIndex) ||
-                                         (square.type === 'day' && square.dayNumber === currentDate.dayNumber);
-                        if (!isCurrent) {
-                            allSquares.push(`${row},${col}`);
-                        }
-                    }
-                }
-            }
-
-            // Check if all required squares are covered
-            return allSquares.every(sq => gameModel.occupiedSquares.has(sq));
-        }
-
         function showWinMessage() {
             const statusMsg = document.getElementById('statusMessage');
             statusMsg.textContent = '🎉 Congratulations! You solved the puzzle!';
@@ -954,8 +912,7 @@
 
         function resetPuzzle() {
             // Reset game model (domain state)
-            gameModel.placedPieces.clear();
-            gameModel.occupiedSquares.clear();
+            resetGameModel(gameModel);
 
             // Reset UI state
             uiState.selectedPiece = null;
@@ -971,10 +928,7 @@
 
         function removePieceFromGrid(pieceName) {
             // Remove the piece from the board (domain operation)
-            gameModel.placedPieces.delete(pieceName);
-
-            // Rebuild occupiedSquares from remaining pieces
-            rebuildOccupiedSquares();
+            removePiece(gameModel, pieceName);
 
             // Update piece tray UI
             updatePieceTrayUI();
@@ -1228,10 +1182,7 @@
                   selectPiece(clickedPiece);
 
                   // Remove it from the board temporarily
-                  gameState.placedPieces.delete(clickedPiece);
-
-                  // Rebuild occupiedSquares from remaining pieces
-                  rebuildOccupiedSquares();
+                  removePiece(gameModel, clickedPiece);
 
                   // Update piece tray UI
                   updatePieceTrayUI();
@@ -1256,17 +1207,8 @@
              const gridCoords = pieceToGridCoords(coords, adjustedRow, adjustedCol);
 
              if (isValidPlacement(gridCoords, gameState.occupiedSquares)) {
-                 // Place piece
-                 gameState.placedPieces.set(gameState.selectedPiece, {
-                     row: adjustedRow,
-                     col: adjustedCol,
-                     orientationIndex: gameState.selectedOrientation
-                 });
-
-                // Mark squares as occupied
-                gridCoords.forEach(([r, c]) => {
-                    gameState.occupiedSquares.add(`${r},${c}`);
-                });
+                 // Place piece (atomic operation)
+                 placePiece(gameModel, gameState.selectedPiece, adjustedRow, adjustedCol, gameState.selectedOrientation);
 
                 // Deselect
                 document.getElementById(`piece-${gameState.selectedPiece}`).classList.remove('selected');
@@ -1280,7 +1222,7 @@
                 updatePieceTrayUI();
 
                 // Check win condition
-                if (checkWinCondition()) {
+                if (checkWinCondition(gameModel, currentDate)) {
                     triggerHaptic('complete');
                     showWinMessage();
                 }
@@ -1403,10 +1345,7 @@
                 const pieceAtMouse = getPlacedPieceAtMouse(gameState.mousePos.x, gameState.mousePos.y);
                 if (pieceAtMouse) {
                     // Remove the piece from the board
-                    gameState.placedPieces.delete(pieceAtMouse);
-
-                    // Rebuild occupiedSquares from remaining pieces
-                    rebuildOccupiedSquares();
+                    removePiece(gameModel, pieceAtMouse);
 
                     // Update piece tray UI
                     updatePieceTrayUI();

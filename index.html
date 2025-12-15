@@ -516,7 +516,7 @@
 
     <script type="module">
         import { initializeGrid, getCurrentDate, GRID_ROWS, GRID_COLS, isValidPlacement, pieceToGridCoords } from './grid.js';
-        import { pieces, getPiece, getPieceOrientation, nextOrientation, prevOrientation } from './pieces.js';
+        import { pieces, getPiece, getPieceOrientation, nextOrientation, prevOrientation, findFlippedOrientation } from './pieces.js';
         import { createGameModel, rebuildOccupiedSquares, placePiece, removePiece, checkWinCondition, resetGameModel } from './gameLogic.js';
 
         // Detect touch capability
@@ -875,28 +875,12 @@
         function flipPiece() {
              gameState.isInteractingWithButton = false;  // Clear flag after interaction
              if (!gameState.selectedPiece) return;
-             const piece = getPiece(gameState.selectedPiece);
-             const currentCoords = piece.orientations[gameState.selectedOrientation];
-             
-             // Find which orientation is the horizontal flip of current
-             const minX = Math.min(...currentCoords.map(([x]) => x));
-             const maxX = Math.max(...currentCoords.map(([x]) => x));
-             const center = (minX + maxX) / 2;
-             
-             // Create flipped version
-             const flipped = currentCoords.map(([x, y]) => [2 * center - x, y]);
-             const minFlippedX = Math.min(...flipped.map(([x]) => x));
-             const normalizedFlipped = flipped.map(([x, y]) => [x - minFlippedX, y]).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-             
-             // Find this flipped version in orientations
-             for (let i = 0; i < piece.orientations.length; i++) {
-                 const oriented = piece.orientations[i].slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-                 if (JSON.stringify(oriented) === JSON.stringify(normalizedFlipped)) {
-                     gameState.selectedOrientation = i;
-                     triggerHaptic('medium');
-                     draw();
-                     return;
-                 }
+
+             const flippedIndex = findFlippedOrientation(gameState.selectedPiece, gameState.selectedOrientation);
+             if (flippedIndex !== gameState.selectedOrientation) {
+                 gameState.selectedOrientation = flippedIndex;
+                 triggerHaptic('medium');
+                 draw();
              }
          }
 

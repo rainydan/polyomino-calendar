@@ -518,6 +518,7 @@
         import { initializeGrid, getCurrentDate, GRID_ROWS, GRID_COLS, isValidPlacement, pieceToGridCoords } from './grid.js';
         import { pieces, getPiece, getPieceOrientation, nextOrientation, prevOrientation, findFlippedOrientation } from './pieces.js';
         import { createGameModel, rebuildOccupiedSquares, placePiece, removePiece, checkWinCondition, resetGameModel } from './gameLogic.js';
+        import { saveGameState, loadGameState, clearGameState, shouldResetForNewDay, setLastPlayedDate, saveStats } from './storage.js';
 
         // Detect touch capability
         const isTouchDevice = () => {
@@ -622,23 +623,10 @@
 
         const currentDate = getCurrentDate();
 
-        // Storage keys
-        const STORAGE_GAME_STATE = 'polyomino-game-state';
-        const STORAGE_STATS = 'polyomino-stats';
-        const STORAGE_LAST_DATE = 'polyomino-last-date';
-        
-        // Daily reset logic
-        function shouldResetForNewDay() {
-            const lastDate = localStorage.getItem(STORAGE_LAST_DATE);
-            const today = `${currentDate.monthIndex}-${currentDate.dayNumber}`;
-            
-            if (!lastDate) return false; // First time, no reset needed
-            return lastDate !== today;
-        }
-
+        // Daily reset logic - uses storage module functions
         function resetForNewDay() {
-            localStorage.setItem(STORAGE_LAST_DATE, `${currentDate.monthIndex}-${currentDate.dayNumber}`);
-            localStorage.removeItem(STORAGE_GAME_STATE);
+            setLastPlayedDate(currentDate);
+            clearGameState();
 
             // Reset game model (domain state)
             resetGameModel(gameModel);
@@ -646,86 +634,6 @@
             // Reset UI state
             uiState.selectedPiece = null;
             uiState.selectedOrientation = 0;
-        }
-
-        // localStorage helper functions
-        function saveGameState() {
-            const gameData = {
-                date: `${currentDate.monthIndex}-${currentDate.dayNumber}`,
-                placedPieces: Array.from(gameModel.placedPieces.entries()),
-                occupiedSquares: Array.from(gameModel.occupiedSquares)
-            };
-            localStorage.setItem(STORAGE_GAME_STATE, JSON.stringify(gameData));
-        }
-
-        function loadGameState() {
-            const saved = localStorage.getItem(STORAGE_GAME_STATE);
-            if (!saved) return;
-
-            try {
-                const gameData = JSON.parse(saved);
-                // Only load if it's for today
-                if (gameData.date === `${currentDate.monthIndex}-${currentDate.dayNumber}`) {
-                    gameData.placedPieces.forEach(([name, placement]) => {
-                        gameModel.placedPieces.set(name, placement);
-                    });
-                    gameData.occupiedSquares.forEach(sq => {
-                        gameModel.occupiedSquares.add(sq);
-                    });
-                    return true;
-                }
-            } catch (e) {
-                console.error('Failed to load game state:', e);
-            }
-            return false;
-        }
-
-        function saveStats(solved, timeSeconds = 0) {
-            let stats = JSON.parse(localStorage.getItem(STORAGE_STATS)) || {
-                gamesPlayed: 0,
-                gamesWon: 0,
-                currentStreak: 0,
-                longestStreak: 0,
-                lastPlayedDate: null,
-                personalBest: 999999,
-                stats: {}
-            };
-
-            const dateKey = `${currentDate.monthIndex + 1}-${currentDate.dayNumber}`;
-            
-            if (!stats.stats[dateKey]) {
-                stats.gamesPlayed++;
-                stats.stats[dateKey] = {};
-            }
-
-            if (solved) {
-                stats.gamesWon++;
-                stats.stats[dateKey].solved = true;
-                stats.stats[dateKey].timeSeconds = timeSeconds;
-
-                // Update streak
-                const yesterday = new Date(new Date().setDate(new Date().getDate() - 1));
-                const yesterdayKey = `${yesterday.getMonth() + 1}-${yesterday.getDate()}`;
-                
-                if (stats.lastPlayedDate === yesterdayKey && stats.stats[yesterdayKey].solved) {
-                    stats.currentStreak++;
-                } else {
-                    stats.currentStreak = 1;
-                }
-                
-                if (stats.currentStreak > stats.longestStreak) {
-                    stats.longestStreak = stats.currentStreak;
-                }
-
-                if (timeSeconds < stats.personalBest) {
-                    stats.personalBest = timeSeconds;
-                }
-            }
-
-            stats.lastPlayedDate = dateKey;
-            stats.stats[dateKey].timestamp = new Date().getTime();
-            
-            localStorage.setItem(STORAGE_STATS, JSON.stringify(stats));
         }
 
         // Initialize date display
@@ -890,8 +798,8 @@
             statusMsg.className = 'status-message success';
             
             // Save stats (assuming 0 time for now, can track elapsed time later)
-            saveStats(true, 0);
-            saveGameState();
+            saveStats(true, 0, currentDate);
+            saveGameState(gameModel, currentDate);
         }
 
         function resetPuzzle() {
@@ -921,7 +829,7 @@
             document.getElementById('statusMessage').className = 'status-message';
             
             // Save game state
-            saveGameState();
+            saveGameState(gameModel, currentDate);
             
             draw();
         }
@@ -1212,7 +1120,7 @@
                 }
 
                 // Save game state after each move
-                saveGameState();
+                saveGameState(gameModel, currentDate);
                 draw();
              } else {
                 // Invalid placement - show shake animation and error haptic
@@ -1338,7 +1246,7 @@
                     document.getElementById('statusMessage').className = 'status-message';
 
                     // Save game state
-                    saveGameState();
+                    saveGameState(gameModel, currentDate);
 
                     draw();
                 }
@@ -1437,17 +1345,26 @@
 
         // Initialize
         // Check if it's a new day and reset if needed
-        if (shouldResetForNewDay()) {
+        if (shouldResetForNewDay(currentDate)) {
             resetForNewDay();
         } else {
-            localStorage.setItem(STORAGE_LAST_DATE, `${currentDate.monthIndex}-${currentDate.dayNumber}`);
+            setLastPlayedDate(currentDate);
         }
-        
+
         initPieceTray();
-        
+
         // Try to load saved game state
-        const savedState = loadGameState();
-        
+        const savedState = loadGameState(currentDate);
+        if (savedState) {
+            savedState.placedPieces.forEach(([name, placement]) => {
+                gameModel.placedPieces.set(name, placement);
+            });
+            savedState.occupiedSquares.forEach(sq => {
+                gameModel.occupiedSquares.add(sq);
+            });
+            updatePieceTrayUI();
+        }
+
         draw();
     </script>
 </body>

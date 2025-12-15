@@ -178,6 +178,31 @@ export function prevOrientation(name, currentIndex = 0) {
 }
 
 /**
+ * Find the orientation index that represents the horizontal flip of the current orientation.
+ * @param {string} name - Piece name
+ * @param {number} currentIndex - Current orientation index
+ * @returns {number} Index of the flipped orientation, or currentIndex if not found
+ */
+export function findFlippedOrientation(name, currentIndex = 0) {
+  const piece = pieces[name];
+  if (!piece) return currentIndex;
+
+  const currentCoords = piece.orientations[currentIndex];
+  const flipped = flipCoords(currentCoords);
+  const normalizedFlipped = flipped.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+
+  // Find matching orientation
+  for (let i = 0; i < piece.orientations.length; i++) {
+    const oriented = piece.orientations[i].slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    if (JSON.stringify(oriented) === JSON.stringify(normalizedFlipped)) {
+      return i;
+    }
+  }
+
+  return currentIndex; // Fallback if no match found
+}
+
+/**
  * Get the bounding box of a set of coordinates
  * @param {Array} coords - Array of [x, y] coordinates
  * @returns {Object} { minX, maxX, minY, maxY, width, height }

@@ -519,6 +519,7 @@
         import { pieces, getPiece, getPieceOrientation, nextOrientation, prevOrientation, findFlippedOrientation } from './pieces.js';
         import { createGameModel, rebuildOccupiedSquares, placePiece, removePiece, checkWinCondition, resetGameModel } from './gameLogic.js';
         import { saveGameState, loadGameState, clearGameState, shouldResetForNewDay, setLastPlayedDate, saveStats } from './storage.js';
+        import { render, getPieceCenter } from './renderer.js';
 
         // Detect touch capability
         const isTouchDevice = () => {
@@ -575,7 +576,10 @@
         
         let SQUARE_SIZE = getResponsiveSquareSize();
         const PADDING = 20;
-        
+
+        // Renderer configuration (passed to render functions)
+        const renderConfig = { PADDING, SQUARE_SIZE, GRID_ROWS, GRID_COLS };
+
         // DPI scaling for high-DPI displays (retina, etc.)
         const dpr = window.devicePixelRatio || 1;
         const logicalWidth = GRID_COLS * SQUARE_SIZE + PADDING * 2;
@@ -840,184 +844,9 @@
             return { row, col };
         }
 
-        function drawGrid() {
-            // Draw calendar squares
-            for (let row = 0; row < GRID_ROWS; row++) {
-                for (let col = 0; col < GRID_COLS; col++) {
-                    const square = gameState.grid[row][col];
-                    const x = PADDING + col * SQUARE_SIZE;
-                    const y = PADDING + row * SQUARE_SIZE;
-
-                    if (square.type === 'empty') {
-                        continue;
-                    }
-
-                    // Check if this is the current date (should be empty)
-                    const isCurrent = (square.type === 'month' && square.monthIndex === currentDate.monthIndex) ||
-                                     (square.type === 'day' && square.dayNumber === currentDate.dayNumber);
-
-                    // Draw background
-                    ctx.fillStyle = isCurrent ? '#fff3cd' : '#ffffff';
-                    ctx.fillRect(x, y, SQUARE_SIZE, SQUARE_SIZE);
-
-                    // Draw border
-                    ctx.strokeStyle = '#cccccc';
-                    ctx.lineWidth = 1;
-                    ctx.strokeRect(x, y, SQUARE_SIZE, SQUARE_SIZE);
-
-                    // Draw text
-                    ctx.fillStyle = isCurrent ? '#ff6b6b' : '#333';
-                    ctx.font = isCurrent ? 'bold 12px sans-serif' : '12px sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText(square.label, x + SQUARE_SIZE / 2, y + SQUARE_SIZE / 2);
-                }
-            }
-        }
-
-        function drawPiece(pieceCoords, startRow, startCol, color, opacity = 1, isHighlighted = false, isActive = false) {
-            ctx.globalAlpha = opacity;
-            
-            // Use distinct color for active pieces
-            if (isActive) {
-                ctx.fillStyle = '#FF6B9D';  // Bright pink/magenta for active pieces
-            } else {
-                ctx.fillStyle = color;
-            }
-            
-            pieceCoords.forEach(([x, y]) => {
-                const gridRow = startRow + y;
-                const gridCol = startCol + x;
-                const canvasX = PADDING + gridCol * SQUARE_SIZE;
-                const canvasY = PADDING + gridRow * SQUARE_SIZE;
-                
-                ctx.fillRect(canvasX, canvasY, SQUARE_SIZE, SQUARE_SIZE);
-                
-                // Draw highlight border - make active pieces more visible
-                if (isActive) {
-                    ctx.strokeStyle = '#C41E3A';  // Dark red for active piece border
-                    ctx.lineWidth = 3;
-                } else if (isHighlighted) {
-                    ctx.strokeStyle = '#ff6b6b';
-                    ctx.lineWidth = 4;
-                } else {
-                    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-                    ctx.lineWidth = 2;
-                }
-                ctx.strokeRect(canvasX, canvasY, SQUARE_SIZE, SQUARE_SIZE);
-                
-                // Add diagonal pattern/texture for active pieces to make them even more distinct
-                if (isActive) {
-                    ctx.strokeStyle = 'rgba(196, 30, 58, 0.3)';
-                    ctx.lineWidth = 1;
-                    for (let i = 0; i < SQUARE_SIZE; i += 4) {
-                        ctx.beginPath();
-                        ctx.moveTo(canvasX + i, canvasY);
-                        ctx.lineTo(canvasX + i + SQUARE_SIZE, canvasY + SQUARE_SIZE);
-                        ctx.stroke();
-                    }
-                }
-            });
-            
-            ctx.globalAlpha = 1;
-        }
-
-        function getPieceCenter(coords) {
-             // Find the center square (most central square in the piece)
-             if (coords.length === 0) return [0, 0];
-             
-             const minX = Math.min(...coords.map(([x]) => x));
-             const maxX = Math.max(...coords.map(([x]) => x));
-             const minY = Math.min(...coords.map(([, y]) => y));
-             const maxY = Math.max(...coords.map(([, y]) => y));
-             
-             const centerX = Math.round((minX + maxX) / 2);
-             const centerY = Math.round((minY + maxY) / 2);
-             
-             // Find the closest square to this center point
-             let closest = coords[0];
-             let minDist = Math.pow(coords[0][0] - centerX, 2) + Math.pow(coords[0][1] - centerY, 2);
-             
-             for (const coord of coords) {
-                 const dist = Math.pow(coord[0] - centerX, 2) + Math.pow(coord[1] - centerY, 2);
-                 if (dist < minDist) {
-                     minDist = dist;
-                     closest = coord;
-                 }
-             }
-             return closest;
-         }
-
-        function drawPlacementIndicator() {
-             // Draw a crosshair or indicator at the exact cursor position to show where piece will land
-             if (!gameState.selectedPiece || gameState.mousePos.x < 0) return;
-             
-             const { row, col } = getGridPos(gameState.mousePos.x, gameState.mousePos.y);
-             const canvasX = PADDING + col * SQUARE_SIZE;
-             const canvasY = PADDING + row * SQUARE_SIZE;
-             
-             // Draw a bright target circle at the tap point
-             ctx.fillStyle = 'rgba(255, 107, 157, 0.3)';  // Semi-transparent magenta
-             ctx.beginPath();
-             ctx.arc(canvasX + SQUARE_SIZE / 2, canvasY + SQUARE_SIZE / 2, SQUARE_SIZE / 3, 0, Math.PI * 2);
-             ctx.fill();
-             
-             // Draw crosshairs
-             ctx.strokeStyle = '#FF6B9D';
-             ctx.lineWidth = 2;
-             
-             // Vertical line
-             ctx.beginPath();
-             ctx.moveTo(canvasX + SQUARE_SIZE / 2, canvasY + 5);
-             ctx.lineTo(canvasX + SQUARE_SIZE / 2, canvasY + SQUARE_SIZE - 5);
-             ctx.stroke();
-             
-             // Horizontal line
-             ctx.beginPath();
-             ctx.moveTo(canvasX + 5, canvasY + SQUARE_SIZE / 2);
-             ctx.lineTo(canvasX + SQUARE_SIZE - 5, canvasY + SQUARE_SIZE / 2);
-             ctx.stroke();
-        }
-
-        function drawPreview() {
-             if (!gameState.selectedPiece) return;
-
-             const piece = getPiece(gameState.selectedPiece);
-             const coords = piece.orientations[gameState.selectedOrientation];
-             const { row, col } = getGridPos(gameState.mousePos.x, gameState.mousePos.y);
-             
-             // Adjust placement so cursor is on piece's center
-             const [centerX, centerY] = getPieceCenter(coords);
-             const adjustedRow = row - centerY;
-             const adjustedCol = col - centerX;
-
-             const gridCoords = pieceToGridCoords(coords, adjustedRow, adjustedCol);
-             const isValid = isValidPlacement(gridCoords, gameState.occupiedSquares);
-
-             // Draw active piece with full opacity and distinct appearance
-             // Only reduce opacity if placement is invalid
-             drawPiece(coords, adjustedRow, adjustedCol, piece.color, isValid ? 1.0 : 0.5, false, true);
-             
-             // Draw placement indicator to show user where piece will land
-             drawPlacementIndicator();
-         }
-
+        // Draw function - delegates to renderer module
         function draw() {
-            ctx.fillStyle = '#f5f5f5';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            drawGrid();
-
-            // Draw placed pieces
-            gameState.placedPieces.forEach((placement, pieceName) => {
-                const piece = getPiece(pieceName);
-                const coords = piece.orientations[placement.orientationIndex];
-                const isHighlighted = pieceName === gameState.highlightedPiece;
-                drawPiece(coords, placement.row, placement.col, piece.color, 0.8, isHighlighted);
-            });
-
-            // Draw preview
-            drawPreview();
+            render(ctx, canvas, gameModel, uiState, currentDate, renderConfig);
         }
 
         // Canvas events

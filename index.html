@@ -590,19 +590,57 @@
         // Scale drawing context by DPR
         ctx.scale(dpr, dpr);
 
-        // Game state
-        const gameState = {
+        // Game model - domain logic state (testable without UI)
+        const gameModel = {
             grid: initializeGrid(),
             placedPieces: new Map(), // Map<pieceName, { row, col, orientationIndex }>
+            occupiedSquares: new Set()
+        };
+
+        // UI state - rendering and interaction concerns
+        const uiState = {
             selectedPiece: null,
             selectedOrientation: 0,
-            occupiedSquares: new Set(),
             mousePos: { x: 0, y: 0 },
             highlightedPiece: null, // Piece name to highlight on grid
             isInteractingWithButton: false  // Flag to prevent deselection during button interaction
         };
 
+        // Backward-compatible alias (will be removed in future)
+        const gameState = {
+            get grid() { return gameModel.grid; },
+            get placedPieces() { return gameModel.placedPieces; },
+            get occupiedSquares() { return gameModel.occupiedSquares; },
+            get selectedPiece() { return uiState.selectedPiece; },
+            set selectedPiece(v) { uiState.selectedPiece = v; },
+            get selectedOrientation() { return uiState.selectedOrientation; },
+            set selectedOrientation(v) { uiState.selectedOrientation = v; },
+            get mousePos() { return uiState.mousePos; },
+            set mousePos(v) { uiState.mousePos = v; },
+            get highlightedPiece() { return uiState.highlightedPiece; },
+            set highlightedPiece(v) { uiState.highlightedPiece = v; },
+            get isInteractingWithButton() { return uiState.isInteractingWithButton; },
+            set isInteractingWithButton(v) { uiState.isInteractingWithButton = v; }
+        };
+
         const currentDate = getCurrentDate();
+
+        /**
+         * Rebuild the occupiedSquares Set from all currently placed pieces.
+         * This helper eliminates duplicate logic across multiple locations.
+         * Uses gameModel directly as this is pure domain logic.
+         */
+        function rebuildOccupiedSquares() {
+            gameModel.occupiedSquares.clear();
+            gameModel.placedPieces.forEach((placement, pieceName) => {
+                const piece = getPiece(pieceName);
+                const coords = piece.orientations[placement.orientationIndex];
+                const gridCoords = pieceToGridCoords(coords, placement.row, placement.col);
+                gridCoords.forEach(([r, c]) => {
+                    gameModel.occupiedSquares.add(`${r},${c}`);
+                });
+            });
+        }
         
         // Storage keys
         const STORAGE_GAME_STATE = 'polyomino-game-state';
@@ -621,20 +659,22 @@
         function resetForNewDay() {
             localStorage.setItem(STORAGE_LAST_DATE, `${currentDate.monthIndex}-${currentDate.dayNumber}`);
             localStorage.removeItem(STORAGE_GAME_STATE);
-            
-            // Keep stats but reset game state
-            gameState.placedPieces.clear();
-            gameState.occupiedSquares.clear();
-            gameState.selectedPiece = null;
-            gameState.selectedOrientation = 0;
+
+            // Reset game model (domain state)
+            gameModel.placedPieces.clear();
+            gameModel.occupiedSquares.clear();
+
+            // Reset UI state
+            uiState.selectedPiece = null;
+            uiState.selectedOrientation = 0;
         }
 
         // localStorage helper functions
         function saveGameState() {
             const gameData = {
                 date: `${currentDate.monthIndex}-${currentDate.dayNumber}`,
-                placedPieces: Array.from(gameState.placedPieces.entries()),
-                occupiedSquares: Array.from(gameState.occupiedSquares)
+                placedPieces: Array.from(gameModel.placedPieces.entries()),
+                occupiedSquares: Array.from(gameModel.occupiedSquares)
             };
             localStorage.setItem(STORAGE_GAME_STATE, JSON.stringify(gameData));
         }
@@ -642,16 +682,16 @@
         function loadGameState() {
             const saved = localStorage.getItem(STORAGE_GAME_STATE);
             if (!saved) return;
-            
+
             try {
                 const gameData = JSON.parse(saved);
                 // Only load if it's for today
                 if (gameData.date === `${currentDate.monthIndex}-${currentDate.dayNumber}`) {
                     gameData.placedPieces.forEach(([name, placement]) => {
-                        gameState.placedPieces.set(name, placement);
+                        gameModel.placedPieces.set(name, placement);
                     });
                     gameData.occupiedSquares.forEach(sq => {
-                        gameState.occupiedSquares.add(sq);
+                        gameModel.occupiedSquares.add(sq);
                     });
                     return true;
                 }
@@ -884,9 +924,9 @@
         function checkWinCondition() {
             // Get all calendar squares that need to be covered
             const allSquares = [];
-            for (let row = 0; row < gameState.grid.length; row++) {
-                for (let col = 0; col < gameState.grid[row].length; col++) {
-                    const square = gameState.grid[row][col];
+            for (let row = 0; row < gameModel.grid.length; row++) {
+                for (let col = 0; col < gameModel.grid[row].length; col++) {
+                    const square = gameModel.grid[row][col];
                     if (square.type !== 'empty') {
                         // Skip the current date square
                         const isCurrent = (square.type === 'month' && square.monthIndex === currentDate.monthIndex) ||
@@ -897,9 +937,9 @@
                     }
                 }
             }
-            
+
             // Check if all required squares are covered
-            return allSquares.every(sq => gameState.occupiedSquares.has(sq));
+            return allSquares.every(sq => gameModel.occupiedSquares.has(sq));
         }
 
         function showWinMessage() {
@@ -913,10 +953,15 @@
         }
 
         function resetPuzzle() {
-            gameState.placedPieces.clear();
-            gameState.occupiedSquares.clear();
-            gameState.selectedPiece = null;
-            gameState.selectedOrientation = 0;
+            // Reset game model (domain state)
+            gameModel.placedPieces.clear();
+            gameModel.occupiedSquares.clear();
+
+            // Reset UI state
+            uiState.selectedPiece = null;
+            uiState.selectedOrientation = 0;
+
+            // Update DOM
             document.getElementById('selectedPiece').textContent = 'None';
             document.querySelectorAll('.piece-item').forEach(item => item.classList.remove('selected'));
             document.getElementById('statusMessage').className = 'status-message';
@@ -925,20 +970,12 @@
         }
 
         function removePieceFromGrid(pieceName) {
-            // Remove the piece from the board
-            gameState.placedPieces.delete(pieceName);
-            
+            // Remove the piece from the board (domain operation)
+            gameModel.placedPieces.delete(pieceName);
+
             // Rebuild occupiedSquares from remaining pieces
-            gameState.occupiedSquares.clear();
-            gameState.placedPieces.forEach((placement, name) => {
-                const piece = getPiece(name);
-                const coords = piece.orientations[placement.orientationIndex];
-                const gridCoords = pieceToGridCoords(coords, placement.row, placement.col);
-                gridCoords.forEach(([r, c]) => {
-                    gameState.occupiedSquares.add(`${r},${c}`);
-                });
-            });
-            
+            rebuildOccupiedSquares();
+
             // Update piece tray UI
             updatePieceTrayUI();
             
@@ -1189,24 +1226,16 @@
               if (clickedPiece && !gameState.selectedPiece) {
                   // Select the placed piece for repositioning
                   selectPiece(clickedPiece);
-                  
+
                   // Remove it from the board temporarily
                   gameState.placedPieces.delete(clickedPiece);
-                  
+
                   // Rebuild occupiedSquares from remaining pieces
-                  gameState.occupiedSquares.clear();
-                  gameState.placedPieces.forEach((placement, pieceName) => {
-                      const piece = getPiece(pieceName);
-                      const coords = piece.orientations[placement.orientationIndex];
-                      const gridCoords = pieceToGridCoords(coords, placement.row, placement.col);
-                      gridCoords.forEach(([r, c]) => {
-                          gameState.occupiedSquares.add(`${r},${c}`);
-                      });
-                  });
-                  
+                  rebuildOccupiedSquares();
+
                   // Update piece tray UI
                   updatePieceTrayUI();
-                  
+
                   draw();
                   return;
               }
@@ -1375,27 +1404,19 @@
                 if (pieceAtMouse) {
                     // Remove the piece from the board
                     gameState.placedPieces.delete(pieceAtMouse);
-                    
+
                     // Rebuild occupiedSquares from remaining pieces
-                    gameState.occupiedSquares.clear();
-                    gameState.placedPieces.forEach((placement, pieceName) => {
-                        const piece = getPiece(pieceName);
-                        const coords = piece.orientations[placement.orientationIndex];
-                        const gridCoords = pieceToGridCoords(coords, placement.row, placement.col);
-                        gridCoords.forEach(([r, c]) => {
-                            gameState.occupiedSquares.add(`${r},${c}`);
-                        });
-                    });
-                    
+                    rebuildOccupiedSquares();
+
                     // Update piece tray UI
                     updatePieceTrayUI();
-                    
+
                     // Clear status message
                     document.getElementById('statusMessage').className = 'status-message';
-                    
+
                     // Save game state
                     saveGameState();
-                    
+
                     draw();
                 }
             }

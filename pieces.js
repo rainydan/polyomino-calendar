@@ -78,47 +78,47 @@ function generateOrientations(baseCoords) {
 }
 
 export const pieces = {
-  // Pentominoes
+  // Pentominoes - using color-blind friendly palette with high contrast
   L: {
     name: "L",
-    color: "#FF6B6B",
+    color: "#E74C3C",  // Bright red
     orientations: generateOrientations([[0,0], [1,0], [2,0], [3,0], [0,1]])
   },
   N: {
     name: "N",
-    color: "#4ECDC4",
+    color: "#3498DB",  // Bright blue
     orientations: generateOrientations([[0,0], [1,0], [1,1], [2,1], [3,1]])
   },
   P: {
     name: "P",
-    color: "#95E1D3",
+    color: "#27AE60",  // Green
     orientations: generateOrientations([[0,0], [1,0], [0,1], [1,1], [0,2]])
   },
   U: {
     name: "U",
-    color: "#F7B731",
+    color: "#F39C12",  // Orange/amber
     orientations: generateOrientations([[0,0], [2,0], [0,1], [1,1], [2,1]])
   },
   V: {
     name: "V",
-    color: "#5F27CD",
+    color: "#8E44AD",  // Purple
     orientations: generateOrientations([[0,0], [1,0], [2,0], [0,1], [0,2]])
   },
   Y: {
     name: "Y",
-    color: "#EE5A6F",
+    color: "#E91E63",  // Pink/magenta
     orientations: generateOrientations([[0,0], [1,0], [2,0], [3,0], [1,1]])
   },
   Z: {
     name: "Z",
-    color: "#00D2D3",
+    color: "#16A085",  // Teal/cyan
     orientations: generateOrientations([[0,0], [0,1], [1,1], [2,1], [2,2]])
   },
 
   // Hexomino
   RECTANGLE: {
     name: "Rectangle",
-    color: "#FFA502",
+    color: "#E67E22",  // Burnt orange
     orientations: generateOrientations([[0,0], [1,0], [2,0], [0,1], [1,1], [2,1]])
   }
 };

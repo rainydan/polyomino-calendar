@@ -81,7 +81,7 @@
             background: #f5f5f5;
             cursor: crosshair;
             display: block;
-            touch-action: manipulation;
+            touch-action: none;
         }
 
         .info-panel {
@@ -743,6 +743,9 @@
             }
             gameState.selectedPiece = null;
             document.getElementById('selectedPiece').textContent = 'None';
+            if (canvasHandlers && canvasHandlers.resetPreviewPosition) {
+                canvasHandlers.resetPreviewPosition();
+            }
             draw();
         }
 
@@ -781,6 +784,9 @@
              const piece = getPiece(gameState.selectedPiece);
              gameState.selectedOrientation = (gameState.selectedOrientation + 1) % piece.orientations.length;
              gameState.isInteractingWithButton = false;  // Clear flag after interaction
+             if (canvasHandlers && canvasHandlers.resetPreviewPosition) {
+                 canvasHandlers.resetPreviewPosition();
+             }
              triggerHaptic('medium');
              draw();
          }
@@ -792,6 +798,9 @@
              const flippedIndex = findFlippedOrientation(gameState.selectedPiece, gameState.selectedOrientation);
              if (flippedIndex !== gameState.selectedOrientation) {
                  gameState.selectedOrientation = flippedIndex;
+                 if (canvasHandlers && canvasHandlers.resetPreviewPosition) {
+                     canvasHandlers.resetPreviewPosition();
+                 }
                  triggerHaptic('medium');
                  draw();
              }
@@ -851,7 +860,7 @@
         }
 
         // Setup all input handlers
-        setupAllCanvasHandlers({
+        const canvasHandlers = setupAllCanvasHandlers({
             canvas,
             gameState,
             gameModel,

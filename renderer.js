@@ -150,9 +150,26 @@ export function drawPiece(ctx, pieceCoords, startRow, startCol, color, config, o
         const canvasX = PADDING + gridCol * SQUARE_SIZE;
         const canvasY = PADDING + gridRow * SQUARE_SIZE;
 
+        // Fill main square
         ctx.fillRect(canvasX, canvasY, SQUARE_SIZE, SQUARE_SIZE);
 
-        // Draw highlight border
+        // Add 3D bevel effect for placed pieces (not active)
+        if (!isActive) {
+            // Lighter highlight on top and left edges
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.fillRect(canvasX, canvasY, SQUARE_SIZE, 2);  // Top edge
+            ctx.fillRect(canvasX, canvasY, 2, SQUARE_SIZE);  // Left edge
+
+            // Darker shadow on bottom and right edges
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.fillRect(canvasX, canvasY + SQUARE_SIZE - 2, SQUARE_SIZE, 2);  // Bottom edge
+            ctx.fillRect(canvasX + SQUARE_SIZE - 2, canvasY, 2, SQUARE_SIZE);  // Right edge
+
+            // Restore original fill style
+            ctx.fillStyle = color;
+        }
+
+        // Draw borders with increased thickness for better separation
         if (isActive) {
             ctx.strokeStyle = '#C41E3A';  // Dark red for active piece border
             ctx.lineWidth = 3;
@@ -160,10 +177,11 @@ export function drawPiece(ctx, pieceCoords, startRow, startCol, color, config, o
             ctx.strokeStyle = '#ff6b6b';
             ctx.lineWidth = 4;
         } else {
-            ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-            ctx.lineWidth = 2;
+            // Thicker, darker border for placed pieces
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+            ctx.lineWidth = 3;
         }
-        ctx.strokeRect(canvasX, canvasY, SQUARE_SIZE, SQUARE_SIZE);
+        ctx.strokeRect(canvasX + 0.5, canvasY + 0.5, SQUARE_SIZE - 1, SQUARE_SIZE - 1);
 
         // Add diagonal pattern for active pieces
         if (isActive) {
@@ -186,21 +204,26 @@ export function drawPiece(ctx, pieceCoords, startRow, startCol, color, config, o
  * @param {CanvasRenderingContext2D} ctx - Canvas context
  * @param {number} row - Grid row
  * @param {number} col - Grid column
+ * @param {boolean} isValid - Whether the placement is valid
  * @param {Object} config - { PADDING, SQUARE_SIZE }
  */
-export function drawPlacementIndicator(ctx, row, col, config) {
+export function drawPlacementIndicator(ctx, row, col, isValid, config) {
     const { PADDING, SQUARE_SIZE } = config;
     const canvasX = PADDING + col * SQUARE_SIZE;
     const canvasY = PADDING + row * SQUARE_SIZE;
 
-    // Draw a bright target circle at the tap point
-    ctx.fillStyle = 'rgba(255, 107, 157, 0.3)';
+    // Use different colors for valid vs invalid placements
+    const color = isValid ? '#4CAF50' : '#F44336';  // Green for valid, red for invalid
+    const fillOpacity = isValid ? 0.2 : 0.3;
+
+    // Draw a target circle at the tap point
+    ctx.fillStyle = `${color}${Math.round(fillOpacity * 255).toString(16).padStart(2, '0')}`;
     ctx.beginPath();
     ctx.arc(canvasX + SQUARE_SIZE / 2, canvasY + SQUARE_SIZE / 2, SQUARE_SIZE / 3, 0, Math.PI * 2);
     ctx.fill();
 
     // Draw crosshairs
-    ctx.strokeStyle = '#FF6B9D';
+    ctx.strokeStyle = color;
     ctx.lineWidth = 2;
 
     // Vertical line
@@ -221,9 +244,10 @@ export function drawPlacementIndicator(ctx, row, col, config) {
  * @param {CanvasRenderingContext2D} ctx - Canvas context
  * @param {Object} uiState - { selectedPiece, selectedOrientation, mousePos }
  * @param {Set} occupiedSquares - Set of occupied square keys
+ * @param {Object} currentDate - Current date { monthIndex, dayNumber }
  * @param {Object} config - { PADDING, SQUARE_SIZE }
  */
-export function drawPreview(ctx, uiState, occupiedSquares, config) {
+export function drawPreview(ctx, uiState, occupiedSquares, currentDate, config) {
     if (!uiState.selectedPiece) return;
 
     const piece = getPiece(uiState.selectedPiece);
@@ -236,7 +260,7 @@ export function drawPreview(ctx, uiState, occupiedSquares, config) {
     const adjustedCol = col - centerX;
 
     const gridCoords = pieceToGridCoords(coords, adjustedRow, adjustedCol);
-    const isValid = isValidPlacement(gridCoords, occupiedSquares);
+    const isValid = isValidPlacement(gridCoords, occupiedSquares, currentDate);
 
     // Draw active piece
     drawPiece(ctx, coords, adjustedRow, adjustedCol, piece.color, config, {
@@ -245,7 +269,7 @@ export function drawPreview(ctx, uiState, occupiedSquares, config) {
     });
 
     // Draw placement indicator
-    drawPlacementIndicator(ctx, row, col, config);
+    drawPlacementIndicator(ctx, row, col, isValid, config);
 }
 
 /**
@@ -277,5 +301,5 @@ export function render(ctx, canvas, gameModel, uiState, currentDate, config) {
     });
 
     // Draw preview of selected piece
-    drawPreview(ctx, uiState, gameModel.occupiedSquares, config);
+    drawPreview(ctx, uiState, gameModel.occupiedSquares, currentDate, config);
 }

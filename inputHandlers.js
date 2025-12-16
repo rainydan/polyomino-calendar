@@ -251,14 +251,18 @@ export function setupCanvasMouseHandlers(deps) {
  * @param {Function} deps.flipPiece - Flip function
  */
 export function setupCanvasTouchHandlers(deps) {
-    const { canvas, gameState, draw, rotateClockwise, flipPiece } = deps;
+    const { canvas, gameState, gameModel, currentDate, draw, rotateClockwise, flipPiece, updatePieceTrayUI, showWinMessage, getGridPos } = deps;
 
     let touchStartX = 0;
     let touchStartY = 0;
     let touchStartTime = 0;
     let touchStartMousePos = null; // Save mouse position at touch start
+    let longPressTimeout = null; // Timeout for long press detection
+    let longPressTriggered = false; // Flag to prevent double-locking
     const SWIPE_THRESHOLD = 50;
     const SWIPE_TIME_THRESHOLD = 500;
+    const LONG_PRESS_DURATION = 500; // 500ms for long press
+    const LONG_PRESS_MOVE_THRESHOLD = 10; // Max movement allowed during long press
 
     // Throttle state for touch rendering
     let lastTouchDrawTime = 0;
@@ -276,12 +280,49 @@ export function setupCanvasTouchHandlers(deps) {
         touchStartTime = Date.now();
         deps.setTouchMoved?.(false);
         deps.setLastInteractionTouch?.(true); // Mark this as a touch interaction
+        longPressTriggered = false;
 
         // Update mouse position to touch position for rendering
         const coords = getCanvasCoords(canvas, touch.clientX, touch.clientY);
         gameState.mousePos = coords;
         touchStartMousePos = { ...coords }; // Save initial mouse position
         draw();
+
+        // Set up long press timeout to lock piece
+        clearTimeout(longPressTimeout);
+        longPressTimeout = setTimeout(() => {
+            if (!gameState.selectedPiece) return;
+
+            // Check if piece can be placed at current position
+            const { row, col } = getGridPos(gameState.mousePos.x, gameState.mousePos.y);
+            const piece = getPiece(gameState.selectedPiece);
+            const coords = piece.orientations[gameState.selectedOrientation];
+            const [centerX, centerY] = getPieceCenter(coords);
+            const adjustedRow = row - centerY;
+            const adjustedCol = col - centerX;
+            const gridCoords = pieceToGridCoords(coords, adjustedRow, adjustedCol);
+
+            if (isValidPlacement(gridCoords, gameState.occupiedSquares, currentDate)) {
+                // Lock the piece
+                longPressTriggered = true;
+                placePiece(gameModel, gameState.selectedPiece, adjustedRow, adjustedCol, gameState.selectedOrientation);
+
+                document.getElementById(`piece-${gameState.selectedPiece}`).classList.remove('selected');
+                gameState.selectedPiece = null;
+                document.getElementById('selectedPiece').textContent = 'None';
+
+                triggerHaptic('success');
+                updatePieceTrayUI();
+
+                if (checkWinCondition(gameModel, currentDate)) {
+                    triggerHaptic('complete');
+                    showWinMessage();
+                }
+
+                saveGameState(gameModel, currentDate);
+                draw();
+            }
+        }, LONG_PRESS_DURATION);
     }, { passive: false });
 
     canvas.addEventListener('touchmove', (e) => {
@@ -298,6 +339,11 @@ export function setupCanvasTouchHandlers(deps) {
             deps.setTouchMoved?.(true);
         }
 
+        // Cancel long press if finger moves too much
+        if (deltaX > LONG_PRESS_MOVE_THRESHOLD || deltaY > LONG_PRESS_MOVE_THRESHOLD) {
+            clearTimeout(longPressTimeout);
+        }
+
         // Update mouse position and redraw with throttling (60fps)
         const coords = getCanvasCoords(canvas, touch.clientX, touch.clientY);
         gameState.mousePos = coords;
@@ -311,6 +357,9 @@ export function setupCanvasTouchHandlers(deps) {
 
     canvas.addEventListener('touchend', (e) => {
         if (!gameState.selectedPiece) return;
+
+        // Always cancel long press timeout on touchend
+        clearTimeout(longPressTimeout);
 
         const touch = e.changedTouches[0];
         const touchDuration = Date.now() - touchStartTime;

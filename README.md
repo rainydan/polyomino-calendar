@@ -2,6 +2,8 @@
 
 A web-based puzzle game where you place polyomino pieces to cover a calendar, leaving only today's date uncovered.
 
+Play it at [rainydan.com](https://polycal.rainydan.com)
+
 ## How to Run
 
 The game must be served over HTTP (not opened directly as a file) due to JavaScript ES module requirements.
@@ -43,4 +45,4 @@ npx http-server
 
 ## AI disclosure
 
-Much of this game is made via conversation with the coding agent [Amp](https://ampcode.com/) by Sourcegraph in /free mode.
+Most of this game is made via conversation with the coding agent [Amp](https://ampcode.com/) by Sourcegraph in /free mode, and Claude Code in cheap mode.

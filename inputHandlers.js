@@ -142,7 +142,7 @@ export function setupCanvasMouseHandlers(deps) {
 
         const gridCoords = pieceToGridCoords(coords, adjustedRow, adjustedCol);
 
-        if (isValidPlacement(gridCoords, gameState.occupiedSquares)) {
+        if (isValidPlacement(gridCoords, gameState.occupiedSquares, currentDate)) {
             placePiece(gameModel, gameState.selectedPiece, adjustedRow, adjustedCol, gameState.selectedOrientation);
 
             document.getElementById(`piece-${gameState.selectedPiece}`).classList.remove('selected');
@@ -207,6 +207,9 @@ export function setupCanvasTouchHandlers(deps) {
     canvas.addEventListener('touchstart', (e) => {
         if (!gameState.selectedPiece) return;
 
+        // Prevent scrolling when a piece is selected
+        e.preventDefault();
+
         const touch = e.touches[0];
         touchStartX = touch.clientX;
         touchStartY = touch.clientY;
@@ -217,10 +220,13 @@ export function setupCanvasTouchHandlers(deps) {
         const coords = getCanvasCoords(canvas, touch.clientX, touch.clientY);
         gameState.mousePos = coords;
         draw();
-    });
+    }, { passive: false });
 
     canvas.addEventListener('touchmove', (e) => {
         if (!gameState.selectedPiece) return;
+
+        // Prevent scrolling when a piece is selected
+        e.preventDefault();
 
         const touch = e.touches[0];
         const deltaX = Math.abs(touch.clientX - touchStartX);
@@ -239,7 +245,7 @@ export function setupCanvasTouchHandlers(deps) {
             draw();
             lastTouchDrawTime = now;
         }
-    }, { passive: true });
+    }, { passive: false });
 
     canvas.addEventListener('touchend', (e) => {
         if (!gameState.selectedPiece) return;

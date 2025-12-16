@@ -176,9 +176,12 @@ export function pieceToGridCoords(pieceCoords, gridRow, gridCol) {
  * Check if a piece placement would collide with existing pieces or go out of bounds
  * @param {Array} pieceCoords - Array of [row, col] grid coordinates
  * @param {Set} occupiedSquares - Set of occupied positions (as "row,col" strings)
+ * @param {Object} currentDate - Current date { monthIndex, dayNumber }
  * @returns {boolean} true if placement is valid
  */
-export function isValidPlacement(pieceCoords, occupiedSquares) {
+export function isValidPlacement(pieceCoords, occupiedSquares, currentDate) {
+  const grid = initializeGrid();
+
   return pieceCoords.every(([row, col]) => {
     // Must be on a valid calendar square
     if (!isValidGridPosition(row, col)) {
@@ -186,6 +189,14 @@ export function isValidPlacement(pieceCoords, occupiedSquares) {
     }
     // Must not overlap with occupied squares
     if (occupiedSquares.has(`${row},${col}`)) {
+      return false;
+    }
+    // Must not cover the current date squares
+    const square = grid[row][col];
+    if (square.type === SQUARE_TYPE.MONTH && square.monthIndex === currentDate.monthIndex) {
+      return false;
+    }
+    if (square.type === SQUARE_TYPE.DAY && square.dayNumber === currentDate.dayNumber) {
       return false;
     }
     return true;

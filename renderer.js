@@ -221,9 +221,10 @@ export function drawPlacementIndicator(ctx, row, col, config) {
  * @param {CanvasRenderingContext2D} ctx - Canvas context
  * @param {Object} uiState - { selectedPiece, selectedOrientation, mousePos }
  * @param {Set} occupiedSquares - Set of occupied square keys
+ * @param {Object} currentDate - Current date { monthIndex, dayNumber }
  * @param {Object} config - { PADDING, SQUARE_SIZE }
  */
-export function drawPreview(ctx, uiState, occupiedSquares, config) {
+export function drawPreview(ctx, uiState, occupiedSquares, currentDate, config) {
     if (!uiState.selectedPiece) return;
 
     const piece = getPiece(uiState.selectedPiece);
@@ -236,7 +237,7 @@ export function drawPreview(ctx, uiState, occupiedSquares, config) {
     const adjustedCol = col - centerX;
 
     const gridCoords = pieceToGridCoords(coords, adjustedRow, adjustedCol);
-    const isValid = isValidPlacement(gridCoords, occupiedSquares);
+    const isValid = isValidPlacement(gridCoords, occupiedSquares, currentDate);
 
     // Draw active piece
     drawPiece(ctx, coords, adjustedRow, adjustedCol, piece.color, config, {
@@ -277,5 +278,5 @@ export function render(ctx, canvas, gameModel, uiState, currentDate, config) {
     });
 
     // Draw preview of selected piece
-    drawPreview(ctx, uiState, gameModel.occupiedSquares, config);
+    drawPreview(ctx, uiState, gameModel.occupiedSquares, currentDate, config);
 }

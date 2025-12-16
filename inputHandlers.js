@@ -93,14 +93,18 @@ export function setupCanvasMouseHandlers(deps) {
 
     // Touch movement tracking (shared with touch handlers)
     let touchMoved = false;
+    let lastInteractionWasTouch = false; // Track if last interaction was touch vs mouse
 
-    // Track preview position for tap-in-place confirmation
+    // Track preview position for tap-in-place confirmation (mobile only)
     let previewRow = null;
     let previewCol = null;
 
     // Expose touchMoved setter for touch handlers
     deps.setTouchMoved = (value) => { touchMoved = value; };
     deps.getTouchMoved = () => touchMoved;
+
+    // Expose flag to indicate touch interaction
+    deps.setLastInteractionTouch = (value) => { lastInteractionWasTouch = value; };
 
     // Expose preview position reset for rotation/flip/deselect
     deps.resetPreviewPosition = () => {
@@ -110,6 +114,7 @@ export function setupCanvasMouseHandlers(deps) {
 
     // Mouse move handler
     canvas.addEventListener('mousemove', (e) => {
+        lastInteractionWasTouch = false; // Mark as mouse interaction
         const coords = getCanvasCoords(canvas, e.clientX, e.clientY);
         gameState.mousePos = coords;
 
@@ -166,11 +171,32 @@ export function setupCanvasMouseHandlers(deps) {
         const gridCoords = pieceToGridCoords(coords, adjustedRow, adjustedCol);
 
         if (isValidPlacement(gridCoords, gameState.occupiedSquares, currentDate)) {
-            // Check if tapping in the same location (tap-in-place confirmation)
-            const isSameLocation = (previewRow === adjustedRow && previewCol === adjustedCol);
+            // Use tap-in-place confirmation ONLY for touch devices
+            // Desktop/mouse clicks lock immediately on first click
+            const useTapInPlace = lastInteractionWasTouch;
 
-            if (isSameLocation) {
-                // Lock the piece on tap-in-place
+            let shouldLock = false;
+
+            if (useTapInPlace) {
+                // Mobile: Check if tapping in the same location (tap-in-place confirmation)
+                const isSameLocation = (previewRow === adjustedRow && previewCol === adjustedCol);
+
+                if (isSameLocation) {
+                    shouldLock = true;
+                } else {
+                    // Just update preview position (don't lock)
+                    previewRow = adjustedRow;
+                    previewCol = adjustedCol;
+                    triggerHaptic('short');
+                    draw();
+                }
+            } else {
+                // Desktop: Lock immediately on first click
+                shouldLock = true;
+            }
+
+            if (shouldLock) {
+                // Lock the piece
                 placePiece(gameModel, gameState.selectedPiece, adjustedRow, adjustedCol, gameState.selectedOrientation);
 
                 document.getElementById(`piece-${gameState.selectedPiece}`).classList.remove('selected');
@@ -190,12 +216,6 @@ export function setupCanvasMouseHandlers(deps) {
                 }
 
                 saveGameState(gameModel, currentDate);
-                draw();
-            } else {
-                // Just update preview position (don't lock)
-                previewRow = adjustedRow;
-                previewCol = adjustedCol;
-                triggerHaptic('short');
                 draw();
             }
         } else {
@@ -255,6 +275,7 @@ export function setupCanvasTouchHandlers(deps) {
         touchStartY = touch.clientY;
         touchStartTime = Date.now();
         deps.setTouchMoved?.(false);
+        deps.setLastInteractionTouch?.(true); // Mark this as a touch interaction
 
         // Update mouse position to touch position for rendering
         const coords = getCanvasCoords(canvas, touch.clientX, touch.clientY);

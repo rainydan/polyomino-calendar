@@ -200,6 +200,10 @@ export function setupCanvasTouchHandlers(deps) {
     const SWIPE_THRESHOLD = 50;
     const SWIPE_TIME_THRESHOLD = 500;
 
+    // Throttle state for touch rendering
+    let lastTouchDrawTime = 0;
+    const TOUCH_DRAW_THROTTLE_MS = 16; // 60fps
+
     canvas.addEventListener('touchstart', (e) => {
         if (!gameState.selectedPiece) return;
 
@@ -208,6 +212,11 @@ export function setupCanvasTouchHandlers(deps) {
         touchStartY = touch.clientY;
         touchStartTime = Date.now();
         deps.setTouchMoved?.(false);
+
+        // Update mouse position to touch position for rendering
+        const coords = getCanvasCoords(canvas, touch.clientX, touch.clientY);
+        gameState.mousePos = coords;
+        draw();
     });
 
     canvas.addEventListener('touchmove', (e) => {
@@ -219,6 +228,16 @@ export function setupCanvasTouchHandlers(deps) {
 
         if (deltaX > 5 || deltaY > 5) {
             deps.setTouchMoved?.(true);
+        }
+
+        // Update mouse position and redraw with throttling (60fps)
+        const coords = getCanvasCoords(canvas, touch.clientX, touch.clientY);
+        gameState.mousePos = coords;
+
+        const now = Date.now();
+        if (now - lastTouchDrawTime >= TOUCH_DRAW_THROTTLE_MS) {
+            draw();
+            lastTouchDrawTime = now;
         }
     }, { passive: true });
 

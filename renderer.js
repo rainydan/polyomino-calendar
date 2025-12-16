@@ -5,11 +5,41 @@ import { pieceToGridCoords, isValidPlacement } from './grid.js';
 import { getPiece } from './pieces.js';
 
 /**
+ * @typedef {Object} RenderConfig
+ * @property {number} PADDING - Canvas padding in pixels
+ * @property {number} SQUARE_SIZE - Size of each grid square in pixels
+ * @property {number} GRID_ROWS - Number of rows in the grid
+ * @property {number} GRID_COLS - Number of columns in the grid
+ */
+
+/**
+ * @typedef {Object} UIState
+ * @property {string|null} selectedPiece - Name of currently selected piece, or null
+ * @property {number} selectedOrientation - Index of current orientation
+ * @property {{x: number, y: number}} mousePos - Current mouse position on canvas
+ * @property {string|null} highlightedPiece - Name of piece to highlight on grid, or null
+ * @property {boolean} isInteractingWithButton - Flag to prevent deselection during button interaction
+ */
+
+/**
+ * @typedef {Object} GameModel
+ * @property {Array<Array<Object>>} grid - 2D grid of calendar squares
+ * @property {Map<string, Object>} placedPieces - Map of piece names to their placements
+ * @property {Set<string>} occupiedSquares - Set of "row,col" strings for occupied grid positions
+ */
+
+/**
+ * @typedef {Object} CurrentDate
+ * @property {number} monthIndex - Month index (0-11, January=0)
+ * @property {number} dayNumber - Day of month (1-31)
+ */
+
+/**
  * Get grid position from canvas coordinates.
  * @param {number} canvasX - X coordinate on canvas
  * @param {number} canvasY - Y coordinate on canvas
- * @param {Object} config - { PADDING, SQUARE_SIZE }
- * @returns {Object} { row, col }
+ * @param {RenderConfig} config - Rendering configuration
+ * @returns {{row: number, col: number}} Grid position
  */
 export function getGridPos(canvasX, canvasY, config) {
     const { PADDING, SQUARE_SIZE } = config;
@@ -222,10 +252,10 @@ export function drawPreview(ctx, uiState, occupiedSquares, config) {
  * Main render function - draws the entire game state.
  * @param {CanvasRenderingContext2D} ctx - Canvas context
  * @param {HTMLCanvasElement} canvas - Canvas element
- * @param {Object} gameModel - { grid, placedPieces, occupiedSquares }
- * @param {Object} uiState - { selectedPiece, selectedOrientation, mousePos, highlightedPiece }
- * @param {Object} currentDate - { monthIndex, dayNumber }
- * @param {Object} config - { PADDING, SQUARE_SIZE, GRID_ROWS, GRID_COLS }
+ * @param {GameModel} gameModel - Game domain state
+ * @param {UIState} uiState - UI interaction state
+ * @param {CurrentDate} currentDate - Current date to highlight
+ * @param {RenderConfig} config - Rendering configuration
  */
 export function render(ctx, canvas, gameModel, uiState, currentDate, config) {
     // Clear canvas

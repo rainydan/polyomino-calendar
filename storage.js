@@ -1,6 +1,37 @@
 // storage.js - localStorage persistence for game state and stats
 // All functions are pure with respect to external state (no global dependencies)
 
+/**
+ * @typedef {Object} CurrentDate
+ * @property {number} monthIndex - Month index (0-11, January=0)
+ * @property {number} dayNumber - Day of month (1-31)
+ */
+
+/**
+ * @typedef {Object} GameModel
+ * @property {Array<Array<Object>>} grid - 2D grid of calendar squares
+ * @property {Map<string, Object>} placedPieces - Map of piece names to their placements
+ * @property {Set<string>} occupiedSquares - Set of "row,col" strings for occupied grid positions
+ */
+
+/**
+ * @typedef {Object} Stats
+ * @property {number} gamesPlayed - Total number of games played
+ * @property {number} gamesWon - Total number of games won
+ * @property {number} currentStreak - Current consecutive days solved
+ * @property {number} longestStreak - Longest consecutive days solved
+ * @property {string|null} lastPlayedDate - Last played date in "M-D" format
+ * @property {number} personalBest - Best time in seconds (999999 if never won)
+ * @property {Object<string, DayStats>} stats - Per-day statistics keyed by "M-D"
+ */
+
+/**
+ * @typedef {Object} DayStats
+ * @property {boolean} [solved] - Whether the puzzle was solved
+ * @property {number} [timeSeconds] - Time taken to solve in seconds
+ * @property {number} [timestamp] - Unix timestamp when stats were saved
+ */
+
 // Storage keys
 const STORAGE_GAME_STATE = 'polyomino-game-state';
 const STORAGE_STATS = 'polyomino-stats';
@@ -8,8 +39,8 @@ const STORAGE_LAST_DATE = 'polyomino-last-date';
 
 /**
  * Save the current game state to localStorage.
- * @param {Object} gameModel - The game model containing placedPieces and occupiedSquares
- * @param {Object} currentDate - { monthIndex, dayNumber }
+ * @param {GameModel} gameModel - The game model containing placedPieces and occupiedSquares
+ * @param {CurrentDate} currentDate - Current date for state versioning
  */
 export function saveGameState(gameModel, currentDate) {
     const gameData = {
@@ -26,7 +57,7 @@ export function saveGameState(gameModel, currentDate) {
 
 /**
  * Load game state from localStorage.
- * @param {Object} currentDate - { monthIndex, dayNumber }
+ * @param {CurrentDate} currentDate - Current date for state versioning
  * @returns {Object|null} Loaded game data { placedPieces, occupiedSquares } or null if not found/invalid
  */
 export function loadGameState(currentDate) {
@@ -57,7 +88,7 @@ export function clearGameState() {
 
 /**
  * Check if we should reset for a new day.
- * @param {Object} currentDate - { monthIndex, dayNumber }
+ * @param {CurrentDate} currentDate - Current date to check against
  * @returns {boolean} True if the last played date differs from today
  */
 export function shouldResetForNewDay(currentDate) {
@@ -70,7 +101,7 @@ export function shouldResetForNewDay(currentDate) {
 
 /**
  * Update the last played date to today.
- * @param {Object} currentDate - { monthIndex, dayNumber }
+ * @param {CurrentDate} currentDate - Current date to record
  */
 export function setLastPlayedDate(currentDate) {
     localStorage.setItem(STORAGE_LAST_DATE, `${currentDate.monthIndex}-${currentDate.dayNumber}`);
@@ -78,7 +109,7 @@ export function setLastPlayedDate(currentDate) {
 
 /**
  * Get default stats structure.
- * @returns {Object} Empty stats object
+ * @returns {Stats} Empty stats object
  */
 function getDefaultStats() {
     return {
@@ -94,7 +125,7 @@ function getDefaultStats() {
 
 /**
  * Load stats from localStorage.
- * @returns {Object} Stats object (default if not found)
+ * @returns {Stats} Stats object (default if not found)
  */
 export function loadStats() {
     try {
@@ -112,7 +143,7 @@ export function loadStats() {
  * Save stats after a game.
  * @param {boolean} solved - Whether the puzzle was solved
  * @param {number} timeSeconds - Time taken to solve (0 if not solved)
- * @param {Object} currentDate - { monthIndex, dayNumber }
+ * @param {CurrentDate} currentDate - Current date for stats recording
  */
 export function saveStats(solved, timeSeconds, currentDate) {
     let stats = loadStats();

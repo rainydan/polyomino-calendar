@@ -23,12 +23,22 @@ npx http-server
 ## Gameplay
 
 - **Goal**: Place all 8 pieces on the calendar grid to cover every day and month except today's date
-- **Select a piece**: Click on any piece in the "Pieces to Place" panel on the right
-- **Place a piece**: Click on the calendar grid where you want to place it
-- **Rotate**: Use the "↻ Rotate" button or press **R** key
-- **Flip**: Use the "↔ Flip" button or press **F** key
-- **Reposition**: Click on a placed piece to select it again and move it
+- **Select a piece**: Click/tap on any piece in the "Pieces to Place" panel on the right
+
+### Desktop Controls
+- **Place a piece**: Click on the calendar grid to lock it in place
+- **Rotate**: Press **R** key, use mouse wheel, or click "↻ Rotate" button
+- **Flip**: Press **F** key, right-click, or click "↔ Flip" button
+- **Reposition**: Click on a placed piece to pick it up and move it
 - **Reset**: Click "Reset" to clear the board and start over
+
+### Mobile Controls
+- **Preview placement**: Tap on the calendar grid to preview piece position (shows green/red crosshair)
+- **Lock piece**: Long press (500ms) on a valid position to lock it in place
+- **Rotate**: Swipe left or right on the grid
+- **Flip**: Swipe up on the grid
+- **Reposition**: Tap on a placed piece to pick it up
+- **Reset**: Tap "Reset" to clear the board and start over
 
 ## Technical Details
 

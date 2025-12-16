@@ -520,6 +520,7 @@
         import { createGameModel, rebuildOccupiedSquares, placePiece, removePiece, checkWinCondition, resetGameModel } from './gameLogic.js';
         import { saveGameState, loadGameState, clearGameState, shouldResetForNewDay, setLastPlayedDate, saveStats } from './storage.js';
         import { render, getPieceCenter } from './renderer.js';
+        import { setupAllCanvasHandlers, triggerHaptic } from './inputHandlers.js';
 
         // Detect touch capability
         const isTouchDevice = () => {
@@ -849,276 +850,21 @@
             render(ctx, canvas, gameModel, uiState, currentDate, renderConfig);
         }
 
-        // Canvas events
-        // Throttle canvas redraws on mousemove for better performance
-        let lastDrawTime = 0;
-        const DRAW_THROTTLE_MS = 16; // ~60fps
-        
-        canvas.addEventListener('mousemove', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            gameState.mousePos = {
-                x: e.clientX - rect.left,
-                y: e.clientY - rect.top
-            };
-            
-            // Throttle redraws to 60fps
-            const now = Date.now();
-            if (now - lastDrawTime >= DRAW_THROTTLE_MS) {
-                draw();
-                lastDrawTime = now;
-            }
+        // Setup all input handlers
+        setupAllCanvasHandlers({
+            canvas,
+            gameState,
+            gameModel,
+            currentDate,
+            getGridPos,
+            draw,
+            selectPiece,
+            deselectPiece,
+            rotateClockwise,
+            flipPiece,
+            updatePieceTrayUI,
+            showWinMessage
         });
-
-        function getPlacedPieceAtMouse(canvasX, canvasY) {
-             const { row, col } = getGridPos(canvasX, canvasY);
-             
-             for (const [pieceName, placement] of gameState.placedPieces) {
-                 const piece = getPiece(pieceName);
-                 const coords = piece.orientations[placement.orientationIndex];
-                 
-                 for (const [x, y] of coords) {
-                     if (placement.row + y === row && placement.col + x === col) {
-                         return pieceName;
-                     }
-                 }
-             }
-             return null;
-         }
-
-         canvas.addEventListener('click', (e) => {
-              const rect = canvas.getBoundingClientRect();
-              const canvasX = e.clientX - rect.left;
-              const canvasY = e.clientY - rect.top;
-
-              // On touch devices, don't place if the user was moving their finger
-              if (touchMoved) {
-                  touchMoved = false; // Reset flag
-                  return;
-              }
-
-              // Check if clicking on an already placed piece
-              const clickedPiece = getPlacedPieceAtMouse(canvasX, canvasY);
-              if (clickedPiece && !gameState.selectedPiece) {
-                  // Select the placed piece for repositioning
-                  selectPiece(clickedPiece);
-
-                  // Remove it from the board temporarily
-                  removePiece(gameModel, clickedPiece);
-
-                  // Update piece tray UI
-                  updatePieceTrayUI();
-
-                  draw();
-                  return;
-              }
-
-              // If no piece selected, don't place
-              if (!gameState.selectedPiece) return;
-
-             const { row, col } = getGridPos(canvasX, canvasY);
-
-             const piece = getPiece(gameState.selectedPiece);
-             const coords = piece.orientations[gameState.selectedOrientation];
-             
-             // Adjust placement so cursor is on piece's center
-             const [centerX, centerY] = getPieceCenter(coords);
-             const adjustedRow = row - centerY;
-             const adjustedCol = col - centerX;
-             
-             const gridCoords = pieceToGridCoords(coords, adjustedRow, adjustedCol);
-
-             if (isValidPlacement(gridCoords, gameState.occupiedSquares)) {
-                 // Place piece (atomic operation)
-                 placePiece(gameModel, gameState.selectedPiece, adjustedRow, adjustedCol, gameState.selectedOrientation);
-
-                // Deselect
-                document.getElementById(`piece-${gameState.selectedPiece}`).classList.remove('selected');
-                gameState.selectedPiece = null;
-                document.getElementById('selectedPiece').textContent = 'None';
-                
-                // Haptic feedback for successful placement
-                triggerHaptic('success');
-                
-                // Update piece tray UI
-                updatePieceTrayUI();
-
-                // Check win condition
-                if (checkWinCondition(gameModel, currentDate)) {
-                    triggerHaptic('complete');
-                    showWinMessage();
-                }
-
-                // Save game state after each move
-                saveGameState(gameModel, currentDate);
-                draw();
-             } else {
-                // Invalid placement - show shake animation and error haptic
-                triggerHaptic('error');
-                canvas.classList.add('shake');
-                setTimeout(() => {
-                    canvas.classList.remove('shake');
-                }, 400);
-             }
-        });
-
-        canvas.addEventListener('mouseleave', (e) => {
-            gameState.mousePos = { x: -1000, y: -1000 };
-            
-            // Check if mouse is moving to a control button or interactive element
-            const relatedTarget = e.relatedTarget;
-            const isMovingToButton = relatedTarget && (
-                relatedTarget.tagName === 'BUTTON' || 
-                relatedTarget.closest('button') ||
-                relatedTarget.classList?.contains('button-group') ||
-                relatedTarget.classList?.contains('controls')
-            );
-            
-            // Only deselect if actually leaving the puzzle area (not moving to controls and not interacting with buttons)
-            if (gameState.selectedPiece && !isMovingToButton && !gameState.isInteractingWithButton) {
-                deselectPiece();
-            }
-            draw();
-        });
-
-        // Touch swipe gestures for rotation and flip
-        let touchStartX = 0;
-        let touchStartY = 0;
-        const SWIPE_THRESHOLD = 50; // Minimum pixels to register swipe
-        const SWIPE_TIME_THRESHOLD = 500; // Max milliseconds for swipe
-        let touchStartTime = 0;
-        let touchMoved = false; // Track if touch moved significantly during the gesture
-
-        canvas.addEventListener('touchstart', (e) => {
-            if (!gameState.selectedPiece) return;
-            
-            const touch = e.touches[0];
-            touchStartX = touch.clientX;
-            touchStartY = touch.clientY;
-            touchStartTime = Date.now();
-            touchMoved = false; // Reset movement flag on touch start
-        });
-
-        canvas.addEventListener('touchmove', (e) => {
-            if (!gameState.selectedPiece) return;
-            
-            const touch = e.touches[0];
-            const deltaX = Math.abs(touch.clientX - touchStartX);
-            const deltaY = Math.abs(touch.clientY - touchStartY);
-            
-            // Mark as moved if movement exceeds a small threshold (5px to account for touch jitter)
-            if (deltaX > 5 || deltaY > 5) {
-                touchMoved = true;
-            }
-        }, { passive: true });
-
-        canvas.addEventListener('touchend', (e) => {
-             if (!gameState.selectedPiece) return;
-             
-             const touch = e.changedTouches[0];
-             const touchEndX = touch.clientX;
-             const touchEndY = touch.clientY;
-             const touchDuration = Date.now() - touchStartTime;
-             
-             // Only register if swipe was quick enough
-             if (touchDuration > SWIPE_TIME_THRESHOLD) return;
-             
-             const deltaX = touchEndX - touchStartX;
-             const deltaY = touchEndY - touchStartY;
-             const absDeltaX = Math.abs(deltaX);
-             const absDeltaY = Math.abs(deltaY);
-             
-             // Detect swipe direction
-             // Horizontal swipes (left/right) for rotation
-             if (absDeltaX > SWIPE_THRESHOLD && absDeltaX > absDeltaY) {
-                 e.preventDefault();
-                 if (deltaX > 0) {
-                     // Swipe right - rotate counter-clockwise
-                     const piece = getPiece(gameState.selectedPiece);
-                     gameState.selectedOrientation = (gameState.selectedOrientation - 1 + piece.orientations.length) % piece.orientations.length;
-                     triggerHaptic('medium');
-                     draw();
-                 } else {
-                     // Swipe left - rotate clockwise
-                     rotateClockwise();
-                 }
-             }
-             // Vertical swipes (up/down) for flip
-             else if (absDeltaY > SWIPE_THRESHOLD && absDeltaY > absDeltaX) {
-                 e.preventDefault();
-                 if (deltaY < 0) {
-                     // Swipe up - flip
-                     flipPiece();
-                 }
-                 // Swipe down could be used for other actions in future
-             }
-         }, { passive: false });
-
-        // Keyboard events
-        document.addEventListener('keydown', (e) => {
-            if (e.key.toLowerCase() === 'r') {
-                e.preventDefault();
-                rotateClockwise();
-            } else if (e.key.toLowerCase() === 'f') {
-                e.preventDefault();
-                flipPiece();
-            } else if (e.key === 'Escape') {
-                e.preventDefault();
-                const pieceAtMouse = getPlacedPieceAtMouse(gameState.mousePos.x, gameState.mousePos.y);
-                if (pieceAtMouse) {
-                    // Remove the piece from the board
-                    removePiece(gameModel, pieceAtMouse);
-
-                    // Update piece tray UI
-                    updatePieceTrayUI();
-
-                    // Clear status message
-                    document.getElementById('statusMessage').className = 'status-message';
-
-                    // Save game state
-                    saveGameState(gameModel, currentDate);
-
-                    draw();
-                }
-            }
-        });
-
-        // Mouse wheel events for rotation
-        canvas.addEventListener('wheel', (e) => {
-            if (!gameState.selectedPiece) return;
-            e.preventDefault();
-            if (e.deltaY < 0) {
-                rotateClockwise();
-            } else {
-                // Rotate counter-clockwise
-                if (gameState.selectedPiece) {
-                    const piece = getPiece(gameState.selectedPiece);
-                    gameState.selectedOrientation = (gameState.selectedOrientation - 1 + piece.orientations.length) % piece.orientations.length;
-                    draw();
-                }
-            }
-        }, { passive: false });
-
-        // Right-click for flip
-        canvas.addEventListener('contextmenu', (e) => {
-            if (!gameState.selectedPiece) return;
-            e.preventDefault();
-            flipPiece();
-        });
-
-        // Haptic feedback helper
-        function triggerHaptic(pattern = 'short') {
-            if (!navigator.vibrate) return; // Fallback for browsers without vibration API
-            
-            const patterns = {
-                short: 10,           // Brief feedback for selection
-                medium: 20,          // Medium feedback for actions
-                success: [20, 10, 20], // Double tap for success
-                error: [50, 30, 50],  // Stronger pattern for errors
-                complete: [30, 50, 30, 50, 30] // Win celebration
-            };
-            
-            navigator.vibrate(patterns[pattern] || pattern);
-        }
 
         // Handle window resize for responsive canvas sizing
         function resizeCanvas() {
@@ -1148,29 +894,12 @@
         window.addEventListener('resize', resizeCanvas);
         window.addEventListener('orientationchange', resizeCanvas);
 
-        // Make functions global
+        // Make functions global for onclick handlers
         window.rotateClockwise = rotateClockwise;
         window.flipPiece = flipPiece;
         window.resetPuzzle = resetPuzzle;
         window.deselectPiece = deselectPiece;
         window.triggerHaptic = triggerHaptic;
-        
-        // Attach button interaction handlers to prevent piece deselection during button tap/click
-        document.querySelectorAll('button').forEach(button => {
-            // Set flag on pointer/touch down
-            button.addEventListener('pointerdown', () => {
-                gameState.isInteractingWithButton = true;
-            });
-            button.addEventListener('touchstart', () => {
-                gameState.isInteractingWithButton = true;
-            });
-            // Clear flag with a small delay to ensure button handler runs first
-            button.addEventListener('click', () => {
-                setTimeout(() => {
-                    gameState.isInteractingWithButton = false;
-                }, 50);
-            });
-        });
 
         // Initialize
         // Check if it's a new day and reset if needed

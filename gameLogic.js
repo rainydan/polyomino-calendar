@@ -1,7 +1,7 @@
 // gameLogic.js - Pure game logic functions (no DOM, no side effects)
 // These functions operate on the game model and are fully testable without UI.
 
-import { pieceToGridCoords } from './grid.js';
+import { pieceToGridCoords, getAllSquares } from './grid.js';
 import { getPiece } from './pieces.js';
 
 /**
@@ -81,22 +81,20 @@ export function removePiece(gameModel, pieceName) {
  * @returns {boolean} True if all required squares are covered
  */
 export function checkWinCondition(gameModel, currentDate) {
-    const allSquares = [];
-    for (let row = 0; row < gameModel.grid.length; row++) {
-        for (let col = 0; col < gameModel.grid[row].length; col++) {
-            const square = gameModel.grid[row][col];
-            if (square.type !== 'empty') {
-                // Skip the current date square (month and day)
-                const isCurrent = (square.type === 'month' && square.monthIndex === currentDate.monthIndex) ||
-                                 (square.type === 'day' && square.dayNumber === currentDate.dayNumber);
-                if (!isCurrent) {
-                    allSquares.push(`${row},${col}`);
-                }
-            }
-        }
-    }
+    // Get all non-empty squares from grid utilities
+    const allSquares = getAllSquares();
 
-    return allSquares.every(sq => gameModel.occupiedSquares.has(sq));
+    // Filter to only squares that should be covered (exclude current date)
+    const squaresToCover = allSquares
+        .filter(([row, col, square]) => {
+            const isCurrent = (square.type === 'month' && square.monthIndex === currentDate.monthIndex) ||
+                             (square.type === 'day' && square.dayNumber === currentDate.dayNumber);
+            return !isCurrent;
+        })
+        .map(([row, col]) => `${row},${col}`);
+
+    // Check if all required squares are occupied
+    return squaresToCover.every(sq => gameModel.occupiedSquares.has(sq));
 }
 
 /**

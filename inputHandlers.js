@@ -94,9 +94,19 @@ export function setupCanvasMouseHandlers(deps) {
     // Touch movement tracking (shared with touch handlers)
     let touchMoved = false;
 
+    // Track preview position for tap-in-place confirmation
+    let previewRow = null;
+    let previewCol = null;
+
     // Expose touchMoved setter for touch handlers
     deps.setTouchMoved = (value) => { touchMoved = value; };
     deps.getTouchMoved = () => touchMoved;
+
+    // Expose preview position reset for rotation/flip/deselect
+    deps.resetPreviewPosition = () => {
+        previewRow = null;
+        previewCol = null;
+    };
 
     // Mouse move handler
     canvas.addEventListener('mousemove', (e) => {
@@ -123,7 +133,19 @@ export function setupCanvasMouseHandlers(deps) {
         // Check if clicking on an already placed piece
         const clickedPiece = getPlacedPieceAtPosition(canvasX, canvasY, gameState.placedPieces, getGridPos);
         if (clickedPiece && !gameState.selectedPiece) {
+            // Save the orientation before removing the piece
+            const placement = gameModel.placedPieces.get(clickedPiece);
+            const savedOrientation = placement ? placement.orientationIndex : 0;
+
             selectPiece(clickedPiece);
+
+            // Restore the orientation after selectPiece (which resets it to 0)
+            gameState.selectedOrientation = savedOrientation;
+
+            // Reset preview position when picking up a piece
+            previewRow = null;
+            previewCol = null;
+
             removePiece(gameModel, clickedPiece);
             updatePieceTrayUI();
             draw();
@@ -143,22 +165,38 @@ export function setupCanvasMouseHandlers(deps) {
         const gridCoords = pieceToGridCoords(coords, adjustedRow, adjustedCol);
 
         if (isValidPlacement(gridCoords, gameState.occupiedSquares, currentDate)) {
-            placePiece(gameModel, gameState.selectedPiece, adjustedRow, adjustedCol, gameState.selectedOrientation);
+            // Check if tapping in the same location (tap-in-place confirmation)
+            const isSameLocation = (previewRow === adjustedRow && previewCol === adjustedCol);
 
-            document.getElementById(`piece-${gameState.selectedPiece}`).classList.remove('selected');
-            gameState.selectedPiece = null;
-            document.getElementById('selectedPiece').textContent = 'None';
+            if (isSameLocation) {
+                // Lock the piece on tap-in-place
+                placePiece(gameModel, gameState.selectedPiece, adjustedRow, adjustedCol, gameState.selectedOrientation);
 
-            triggerHaptic('success');
-            updatePieceTrayUI();
+                document.getElementById(`piece-${gameState.selectedPiece}`).classList.remove('selected');
+                gameState.selectedPiece = null;
+                document.getElementById('selectedPiece').textContent = 'None';
 
-            if (checkWinCondition(gameModel, currentDate)) {
-                triggerHaptic('complete');
-                showWinMessage();
+                // Reset preview position
+                previewRow = null;
+                previewCol = null;
+
+                triggerHaptic('success');
+                updatePieceTrayUI();
+
+                if (checkWinCondition(gameModel, currentDate)) {
+                    triggerHaptic('complete');
+                    showWinMessage();
+                }
+
+                saveGameState(gameModel, currentDate);
+                draw();
+            } else {
+                // Just update preview position (don't lock)
+                previewRow = adjustedRow;
+                previewCol = adjustedCol;
+                triggerHaptic('short');
+                draw();
             }
-
-            saveGameState(gameModel, currentDate);
-            draw();
         } else {
             triggerHaptic('error');
             canvas.classList.add('shake');
@@ -378,6 +416,7 @@ export function setupButtonInteractionHandlers(deps) {
 /**
  * Setup all canvas input handlers.
  * @param {Object} deps - All dependencies
+ * @returns {Object} Handlers object with resetPreviewPosition function
  */
 export function setupAllCanvasHandlers(deps) {
     setupCanvasMouseHandlers(deps);
@@ -386,4 +425,9 @@ export function setupAllCanvasHandlers(deps) {
     setupWheelHandler(deps);
     setupContextMenuHandler(deps);
     setupButtonInteractionHandlers(deps);
+
+    // Return helper functions for external use
+    return {
+        resetPreviewPosition: deps.resetPreviewPosition || (() => {})
+    };
 }

@@ -124,10 +124,11 @@ export function setupCanvasMouseHandlers(deps) {
     canvas.addEventListener('click', (e) => {
         const { x: canvasX, y: canvasY } = getCanvasCoords(canvas, e.clientX, e.clientY);
 
-        // On touch devices, don't place if the user was moving their finger
+        // On touch devices, allow taps within the same grid square even if finger moved slightly
+        // (Swipe gestures are handled separately in touchend and don't trigger click events)
         if (touchMoved) {
             touchMoved = false;
-            return;
+            // Don't return - allow tap-in-place logic to work
         }
 
         // Check if clicking on an already placed piece
@@ -235,6 +236,7 @@ export function setupCanvasTouchHandlers(deps) {
     let touchStartX = 0;
     let touchStartY = 0;
     let touchStartTime = 0;
+    let touchStartMousePos = null; // Save mouse position at touch start
     const SWIPE_THRESHOLD = 50;
     const SWIPE_TIME_THRESHOLD = 500;
 
@@ -257,6 +259,7 @@ export function setupCanvasTouchHandlers(deps) {
         // Update mouse position to touch position for rendering
         const coords = getCanvasCoords(canvas, touch.clientX, touch.clientY);
         gameState.mousePos = coords;
+        touchStartMousePos = { ...coords }; // Save initial mouse position
         draw();
     }, { passive: false });
 
@@ -298,21 +301,31 @@ export function setupCanvasTouchHandlers(deps) {
         const absDeltaX = Math.abs(deltaX);
         const absDeltaY = Math.abs(deltaY);
 
+        let isSwipeGesture = false;
+
         if (absDeltaX > SWIPE_THRESHOLD && absDeltaX > absDeltaY) {
             e.preventDefault();
+            isSwipeGesture = true;
             if (deltaX > 0) {
                 const piece = getPiece(gameState.selectedPiece);
                 gameState.selectedOrientation = (gameState.selectedOrientation - 1 + piece.orientations.length) % piece.orientations.length;
                 triggerHaptic('medium');
-                draw();
             } else {
                 rotateClockwise();
             }
         } else if (absDeltaY > SWIPE_THRESHOLD && absDeltaY > absDeltaX) {
             e.preventDefault();
+            isSwipeGesture = true;
             if (deltaY < 0) {
                 flipPiece();
             }
+        }
+
+        // If it was a swipe gesture, restore mouse position to where touch started
+        // This prevents the piece from moving during rotation/flip
+        if (isSwipeGesture && touchStartMousePos) {
+            gameState.mousePos = { ...touchStartMousePos };
+            draw();
         }
     }, { passive: false });
 }
